@@ -1,0 +1,19 @@
+PURITY RITUAL - GITHUB UPLOAD
+
+Repository:
+https://github.com/Purityritual/IMAM
+
+1. Extract this ZIP file.
+2. Open the GitHub repository.
+3. Click "uploading an existing file" or Add file > Upload files.
+4. Drag the folder contents into GitHub.
+5. Enter commit message: Initial Purity Ritual website
+6. Click Commit changes.
+
+Cloudflare Pages settings:
+- Production branch: main
+- Framework preset: None
+- Build command: leave empty
+- Build output directory: dist
+
+Do not upload this ZIP itself without extracting it.
