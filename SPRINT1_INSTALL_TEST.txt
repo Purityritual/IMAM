@@ -1,0 +1,16 @@
+PURITY RITUAL — SPRINT 1: بوابة العملاء وطلبات الخدمة
+
+1. شغّل supabase/001_SPRINT1_CUSTOMERS_REQUESTS.sql في Supabase SQL Editor.
+2. انسخ Project URL و anon public key من Supabase > Project Settings > API.
+3. ضعهما داخل dist/supabase-config.js (ممنوع استخدام service_role).
+4. سجل حسابًا من /portal.html ثم رقّه إلى مدير بالسطر الموجود آخر ملف SQL.
+5. لوحة الإدارة: /admin.html
+
+اختبار القبول:
+- العميل ينشئ حسابًا ويسجل الدخول.
+- يرسل طلب خدمة مع صور ويظهر رقم PR-REQ تلقائي.
+- الطلب يظهر في صفحة العميل.
+- المدير يراه في /admin.html ويغيّر حالته.
+- الحالة الجديدة تظهر للعميل بعد التحديث.
+
+النشر: ارفع dist وsupabase وملف التعليمات إلى GitHub، وسيعيد Cloudflare Pages النشر تلقائيًا.

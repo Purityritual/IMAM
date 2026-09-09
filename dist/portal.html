@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#073f46"><title>بوابة العملاء | Purity Ritual</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Kufi+Arabic:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="portal.css">
+</head>
+<body>
+  <header class="portal-header"><a href="index.html"><img src="assets/logo.png" alt="Purity Ritual"></a><div><a href="index.html">الموقع الرئيسي</a><button id="logoutBtn" class="ghost hidden">تسجيل الخروج</button></div></header>
+  <main class="portal-shell">
+    <section id="authView" class="auth-layout">
+      <div class="auth-intro"><span>بوابة عملاء Purity Ritual</span><h1>اطلب الخدمة وتابعها من مكان واحد</h1><p>أنشئ حسابك لتسجيل الطلب، إرفاق صور الموقع، ومتابعة حالة المعاينة والتسعير والتنفيذ.</p><ul><li>طلب خدمة خلال دقائق</li><li>متابعة الحالة بوضوح</li><li>حفظ الطلبات والمرفقات بأمان</li></ul></div>
+      <div class="card auth-card">
+        <div class="tabs"><button class="tab active" data-tab="login">دخول</button><button class="tab" data-tab="register">حساب جديد</button></div>
+        <form id="loginForm"><label>البريد الإلكتروني<input type="email" name="email" required autocomplete="email"></label><label>كلمة المرور<input type="password" name="password" required minlength="6" autocomplete="current-password"></label><button class="primary" type="submit">تسجيل الدخول</button></form>
+        <form id="registerForm" class="hidden"><label>الاسم الكامل<input name="full_name" required></label><label>رقم الجوال<input name="phone" dir="ltr" required placeholder="05xxxxxxxx"></label><label>البريد الإلكتروني<input type="email" name="email" required></label><label>كلمة المرور<input type="password" name="password" required minlength="6"></label><button class="primary" type="submit">إنشاء الحساب</button></form>
+        <p id="authMessage" class="message" role="status"></p>
+      </div>
+    </section>
+
+    <section id="customerView" class="hidden">
+      <div class="dashboard-head"><div><span>حساب العميل</span><h1 id="welcome">مرحبًا</h1></div><button id="newRequestBtn" class="primary">+ طلب خدمة جديد</button></div>
+      <div class="stats"><article><b id="totalRequests">0</b><span>إجمالي الطلبات</span></article><article><b id="openRequests">0</b><span>طلبات قيد المعالجة</span></article><article><b id="completedRequests">0</b><span>طلبات مكتملة</span></article></div>
+      <section class="card"><div class="section-head"><h2>طلباتي</h2><button id="refreshBtn" class="ghost">تحديث</button></div><div id="requestsList" class="request-list"><p class="empty">لا توجد طلبات حتى الآن.</p></div></section>
+    </section>
+  </main>
+
+  <dialog id="requestDialog">
+    <form id="requestForm" method="dialog" class="request-form">
+      <div class="dialog-head"><div><span>طلب جديد</span><h2>تفاصيل الخدمة</h2></div><button type="button" id="closeDialog" class="icon-btn" aria-label="إغلاق">×</button></div>
+      <div class="form-grid">
+        <label>نوع الخدمة<select name="service_type" required><option value="">اختر الخدمة</option><option>تنظيف المنازل والفلل</option><option>المكاتب والمنشآت</option><option>التنظيف العميق</option><option>تلميع الأرضيات</option><option>ما بعد التشطيب</option><option>عقد دوري</option></select></label>
+        <label>نوع الموقع<select name="property_type" required><option value="">اختر</option><option>شقة</option><option>فيلا</option><option>مكتب</option><option>معرض</option><option>منشأة</option><option>أخرى</option></select></label>
+        <label>المدينة<input name="city" value="جدة" required></label><label>الحي<input name="district" required></label>
+        <label>المساحة التقريبية م²<input name="area_sqm" type="number" min="1"></label><label>الموعد المفضل<input name="preferred_date" type="date"></label>
+        <label class="wide">العنوان<input name="address" required></label><label class="wide">تفاصيل إضافية<textarea name="notes" rows="4" placeholder="صف حالة الموقع وأي متطلبات خاصة"></textarea></label>
+        <label class="wide upload">صور الموقع (حتى 5 صور)<input name="photos" type="file" accept="image/*" multiple></label>
+      </div>
+      <p id="requestMessage" class="message" role="status"></p><button class="primary full" type="submit">إرسال الطلب</button>
+    </form>
+  </dialog>
+  <script type="module" src="portal.js"></script>
+</body></html>

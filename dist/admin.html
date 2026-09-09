@@ -1,0 +1,16 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>إدارة الطلبات | Purity Ritual</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Kufi+Arabic:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="portal.css"><link rel="stylesheet" href="admin.css">
+</head>
+<body>
+  <header class="portal-header"><a href="index.html"><img src="assets/logo.png" alt="Purity Ritual"></a><div><a href="portal.html">بوابة العملاء</a><button id="logoutBtn" class="ghost hidden">تسجيل الخروج</button></div></header>
+  <main class="portal-shell">
+    <section id="adminLogin" class="card admin-login"><h1>دخول الإدارة</h1><form id="loginForm"><label>البريد الإلكتروني<input type="email" name="email" required></label><label>كلمة المرور<input type="password" name="password" required></label><button class="primary full">دخول</button></form><p id="message" class="message"></p></section>
+    <section id="adminView" class="hidden"><div class="dashboard-head"><div><span>لوحة التشغيل</span><h1>طلبات الخدمة</h1></div><button id="refreshBtn" class="ghost">تحديث</button></div><div class="stats"><article><b id="newCount">0</b><span>طلبات جديدة</span></article><article><b id="activeCount">0</b><span>قيد المعالجة</span></article><article><b id="doneCount">0</b><span>مكتملة</span></article></div><section class="card"><div class="admin-filters"><input id="search" placeholder="بحث برقم الطلب أو اسم العميل"><select id="statusFilter"><option value="">كل الحالات</option><option value="new">جديد</option><option value="reviewing">تحت المراجعة</option><option value="inspection_scheduled">تم تحديد المعاينة</option><option value="completed">مكتمل</option><option value="cancelled">ملغي</option></select></div><div id="adminRequests" class="request-list"></div></section></section>
+  </main><script type="module" src="admin.js"></script>
+</body></html>
