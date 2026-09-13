@@ -12,16 +12,17 @@ LOCAL TEST
 3. Open the Local URL shown by PowerShell.
 
 FULL ACCEPTANCE SCENARIO
-1. Customer (melnaeem@gmail.com): create a service request.
-2. Super Admin (melnaeema@gmail.com): open دورة التشغيل.
-3. Click بدء المراجعة.
-4. Enter price before VAT and click إصدار وإرسال العرض.
-5. Customer: open عروض الأسعار and approve the quotation.
-6. Super Admin/Operations: select an employee and click إسناد وجدولة.
-7. Employee: open مهامي, click بدء المهمة, then إنهاء المهمة.
-8. Super Admin/Accountant: open دورة التشغيل and issue the invoice.
-9. Open الفواتير والتحصيل, click تسجيل دفعة, enter invoice number, amount, method and reference.
-10. Customer: verify request status, accepted quotation, invoice and payment status.
+1. Public visitor: submit a real quotation request from the home page.
+2. Sales/Marketing: open طلبات عروض السعر and convert it to Project Management.
+3. Customer Service/Marketing: record follow-up result and next contact date.
+4. Project Management: open إدارة المشاريع and create/send the quotation.
+5. Registered customer: approve the quotation from the customer portal.
+6. Project Management: assign an employee.
+7. Employee: open مهامي, start the task, then complete it.
+8. Accountant: issue the final invoice from إدارة المشاريع.
+9. Accountant: record payments from الفواتير والتحصيل until fully paid.
+10. Reports: print the final tax invoice and close the fully paid request.
+11. Verify all dashboard counters and lists come only from real Supabase records.
 
 ROLE ACCEPTANCE
 - melnaeema@gmail.com: Super Admin and all modules.

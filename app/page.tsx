@@ -1,26 +1,22 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { LayoutDashboard, ClipboardList, Users, FileText, ReceiptText, WalletCards, Settings, Bell, Search, Plus, CalendarDays, MapPin, Phone, CheckCircle2, Clock3, MoreHorizontal, Menu, X, Eye, Send, Download, Filter, BadgeCheck } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { callRpc, createEmployeeAccount, getSession, getUserId, insertPublicRecord, insertRecord, selectRecords, signIn, signOut, signUp, updateRecord } from "@/lib/supabase";
 
-const nav = [["نظرة عامة", LayoutDashboard], ["دورة التشغيل", CalendarDays], ["مهامي", CheckCircle2], ["طلبات الخدمة", ClipboardList], ["العملاء", Users], ["عروض الأسعار", FileText], ["العقود", ReceiptText], ["الفواتير والتحصيل", WalletCards], ["الموظفون والصلاحيات", Settings]] as const;
-type Role = "السوبر أدمن" | "المدير العام" | "مدير العمليات" | "المبيعات" | "مشرف العمليات" | "المحاسب";
+const nav = [["نظرة عامة", LayoutDashboard], ["طلبات عروض السعر", FileText], ["إدارة المشاريع", CalendarDays], ["خدمة العملاء والتسويق", Phone], ["مهامي", CheckCircle2], ["طلبات الخدمة", ClipboardList], ["العملاء", Users], ["عروض الأسعار", FileText], ["العقود", ReceiptText], ["الفواتير والتحصيل", WalletCards], ["التقارير والإغلاق", BadgeCheck], ["الموظفون والصلاحيات", Settings]] as const;
+type Role = "السوبر أدمن" | "المدير العام" | "مدير المشاريع" | "خدمة العملاء" | "التسويق" | "المبيعات" | "مشرف العمليات" | "المحاسب";
 const permissions: Record<Role, { sections: string[]; create: string[]; export: boolean }> = {
   "السوبر أدمن": { sections: nav.map(([n]) => n), create: nav.map(([n]) => n), export: true },
   "المدير العام": { sections: nav.filter(([n]) => n !== "الموظفون والصلاحيات").map(([n]) => n), create: ["طلبات الخدمة", "العملاء", "عروض الأسعار", "العقود", "الفواتير والتحصيل"], export: true },
-  "مدير العمليات": { sections: ["نظرة عامة", "دورة التشغيل", "مهامي", "طلبات الخدمة", "العملاء"], create: ["طلبات الخدمة"], export: false },
-  "المبيعات": { sections: ["نظرة عامة", "مهامي", "طلبات الخدمة", "العملاء", "عروض الأسعار"], create: ["طلبات الخدمة", "العملاء", "عروض الأسعار"], export: false },
-  "مشرف العمليات": { sections: ["نظرة عامة", "دورة التشغيل", "مهامي", "طلبات الخدمة", "العملاء"], create: ["طلبات الخدمة"], export: false },
-  "المحاسب": { sections: ["نظرة عامة", "مهامي", "العملاء", "العقود", "الفواتير والتحصيل"], create: ["الفواتير والتحصيل"], export: true },
+  "مدير المشاريع": { sections: ["نظرة عامة", "إدارة المشاريع", "مهامي", "طلبات الخدمة", "العملاء"], create: ["طلبات الخدمة"], export: false },
+  "خدمة العملاء": { sections: ["نظرة عامة", "خدمة العملاء والتسويق", "مهامي", "العملاء", "طلبات الخدمة"], create: [], export: false },
+  "التسويق": { sections: ["نظرة عامة", "طلبات عروض السعر", "خدمة العملاء والتسويق", "مهامي", "العملاء"], create: [], export: false },
+  "المبيعات": { sections: ["نظرة عامة", "طلبات عروض السعر", "مهامي", "طلبات الخدمة", "العملاء", "عروض الأسعار"], create: ["طلبات الخدمة", "العملاء", "عروض الأسعار"], export: false },
+  "مشرف العمليات": { sections: ["نظرة عامة", "إدارة المشاريع", "مهامي", "طلبات الخدمة", "العملاء"], create: ["طلبات الخدمة"], export: false },
+  "المحاسب": { sections: ["نظرة عامة", "مهامي", "العملاء", "العقود", "الفواتير والتحصيل", "التقارير والإغلاق"], create: ["الفواتير والتحصيل"], export: true },
 };
-const requests = [
-  ["PR-REQ-2026-0012", "شركة أفق الأعمال — تنظيف مكاتب دوري", "جدة - الشاطئ", "معاينة اليوم", "عرض"],
-  ["PR-REQ-2026-0011", "سارة أحمد — تنظيف عميق لفيلا", "جدة - المحمدية", "بانتظار التسعير", "عرض"],
-  ["PR-REQ-2026-0010", "معرض لوميير — تلميع أرضيات", "جدة - الروضة", "عرض مرسل", "عرض"],
-  ["PR-REQ-2026-0009", "محمد السالم — تنظيف بعد التشطيب", "جدة - أبحر", "قيد التنفيذ", "عرض"],
-];
 const info: Record<string, { note: string; action: string; columns: string[] }> = {
   "طلبات الخدمة": { note: "متابعة الطلب من الاستلام والمعاينة حتى التنفيذ", action: "طلب جديد", columns: ["رقم الطلب", "العميل والخدمة", "الموقع", "الحالة", "الإجراء"] },
   "العملاء": { note: "ملفات العملاء وسجل الطلبات والتواصل", action: "إضافة عميل", columns: ["العميل", "رقم الجوال", "آخر خدمة", "الرصيد", "الإجراء"] },
@@ -59,7 +55,7 @@ export default function Home() {
       if (rows[0]?.is_active === false) { signOut(); setConnected(false); return; }
       setProfileName(String(rows[0]?.full_name || "المستخدم"));
       setAssignedSections(Array.isArray(rows[0]?.permissions) ? rows[0].permissions as string[] : []);
-      const roleMap: Record<string, Role> = { super_admin: "السوبر أدمن", admin: "المدير العام", manager: "مدير العمليات", sales: "المبيعات", operations: "مشرف العمليات", accountant: "المحاسب" };
+      const roleMap: Record<string, Role> = { super_admin: "السوبر أدمن", admin: "المدير العام", manager: "مدير المشاريع", project_manager: "مدير المشاريع", customer_service: "خدمة العملاء", marketing: "التسويق", sales: "المبيعات", operations: "مشرف العمليات", accountant: "المحاسب" };
       if (roleMap[dbRole]) { setRole(roleMap[dbRole]); setAccountKind("staff"); }
       else setAccountKind("customer");
     }).catch(() => setAccountKind("customer"));
@@ -73,11 +69,11 @@ export default function Home() {
     <aside className={open ? "side open" : "side"}>
       <div className="brand"><img src="/brand/logo.png" alt="شعار Purity Ritual"/><div className="brandname"><strong>Purity</strong><span>Ritual</span></div><button onClick={() => setOpen(false)} aria-label="إغلاق القائمة"><X/></button></div>
       <div className="workspace"><span>مساحة الإدارة</span><strong>Purity Ritual</strong><small>{role}</small></div>
-      <nav>{nav.filter(([name]) => permit.sections.includes(name)).map(([name, Icon]) => <button key={name} className={active === name ? "active" : ""} onClick={() => { setActive(name); setMode("admin"); setOpen(false); }}><Icon/><span>{name}</span>{name === "طلبات الخدمة" && <b>4</b>}</button>)}</nav>
+      <nav>{nav.filter(([name]) => permit.sections.includes(name)).map(([name, Icon]) => <button key={name} className={active === name ? "active" : ""} onClick={() => { setActive(name); setMode("admin"); setOpen(false); }}><Icon/><span>{name}</span></button>)}</nav>
       <div className="sidefoot"><div className="profile"><i>{profileName.slice(0,1)}</i><div><strong>{profileName}</strong><small>{role}</small></div><MoreHorizontal/></div></div>
     </aside>
     <main><header className="top"><button className="menub" onClick={() => setOpen(true)} aria-label="فتح القائمة"><Menu/></button><div className="search"><Search/><input placeholder="ابحث عن عميل، طلب، أو فاتورة..." aria-label="البحث"/></div><div className="topactions"><button className="bell" aria-label="الإشعارات"><Bell/><i/></button><button className="accountButton" onClick={() => setLoginOpen(true)}>{role}</button></div></header>
-      {mode === "customer" ? <Customer notify={notify} onCreate={() => setFormType("طلب خدمة")}/> : active === "نظرة عامة" ? <Dashboard notify={notify} canCreate={permit.create.includes("طلبات الخدمة")} onCreate={() => setFormType("طلب خدمة")}/> : active === "دورة التشغيل" ? <WorkflowBoard notify={notify}/> : active === "مهامي" ? <EmployeeTasks notify={notify}/> : active === "الموظفون والصلاحيات" ? <EmployeesPermissions notify={notify}/> : <Management section={active} connected={connected} notify={notify} canCreate={permit.create.includes(active)} canExport={permit.export} onCreate={() => setFormType(info[active].action)} onRecordPayment={() => setFormType("تسجيل دفعة")}/>} 
+      {mode === "customer" ? <Customer notify={notify} onCreate={() => setFormType("طلب خدمة")}/> : active === "نظرة عامة" ? <Dashboard name={profileName} notify={notify} canCreate={permit.create.includes("طلبات الخدمة")} onCreate={() => setFormType("طلب خدمة")}/> : active === "طلبات عروض السعر" ? <LeadBoard notify={notify}/> : active === "إدارة المشاريع" ? <WorkflowBoard notify={notify}/> : active === "خدمة العملاء والتسويق" ? <FollowupBoard notify={notify}/> : active === "التقارير والإغلاق" ? <ReportsBoard notify={notify}/> : active === "مهامي" ? <EmployeeTasks notify={notify}/> : active === "الموظفون والصلاحيات" ? <EmployeesPermissions notify={notify}/> : <Management section={active} connected={connected} notify={notify} canCreate={permit.create.includes(active)} canExport={permit.export} onCreate={() => setFormType(info[active].action)} onRecordPayment={() => setFormType("تسجيل دفعة")}/>} 
       {notice && <div className="toast"><BadgeCheck/>{notice}</div>}
       <DatabaseLogin open={loginOpen} connected={connected} onClose={() => setLoginOpen(false)} onConnected={() => { setConnected(true); setLoginOpen(false); notify("تم تسجيل الدخول"); }} onDisconnected={() => { setConnected(false); setLoginOpen(false); notify("تم تسجيل الخروج"); }}/>
       <CreateForm type={formType} onClose={() => setFormType(null)} onNeedLogin={() => setLoginOpen(true)} onSaved={(label) => { setFormType(null); notify(`تم حفظ ${label} بنجاح`); }}/>
@@ -85,11 +81,20 @@ export default function Home() {
   </div>;
 }
 
-function Dashboard({ notify, canCreate, onCreate }: { notify: (m: string) => void; canCreate: boolean; onCreate: () => void }) {
-  return <div className="page"><section className="pagehead"><div><p>الأربعاء، 9 سبتمبر 2026</p><h1>صباح الخير، مجدي</h1><span>هذه خلاصة أعمال Purity Ritual اليوم.</span></div>{canCreate && <button className="primary" onClick={onCreate}><Plus/>طلب خدمة جديد</button>}</section>
-    <section className="stats"><Stat label="طلبات جديدة" value="12" note="+18% هذا الشهر" icon={<ClipboardList/>}/><Stat label="معاينات اليوم" value="4" note="التالي 11:30 ص" icon={<CalendarDays/>}/><Stat label="عروض بانتظار الرد" value="7" note="بقيمة 28,450 ر.س" icon={<FileText/>}/><Stat label="تحصيل هذا الشهر" value="86,320" note="72% من المستهدف" icon={<WalletCards/>}/></section>
-    <section className="grid"><div className="panel"><h2>أحدث طلبات الخدمة</h2><DataTable columns={["الطلب", "العميل والخدمة", "الموقع", "الحالة", "الإجراء"]} rows={requests} notify={notify}/></div><aside className="panel today"><h2>جدول اليوم</h2><Visit t="09:00" title="معاينة فيلا" client="سارة أحمد - المحمدية"/><Visit t="11:30" title="فحص موقع دوري" client="شركة أفق الأعمال - الشاطئ"/><Visit t="14:00" title="تسليم أعمال" client="معرض لوميير - الروضة"/></aside></section>
-    <section className="insight"><div><span>فريق العمل</span><h2>فريق موحّد، جودة ثابتة.</h2><p>موظفون وموظفات بزي Purity Ritual المعتمد لتنفيذ الخدمات باحترافية وأمان.</p><div className="kpis"><div><b>94%</b><small>التزام بالمواعيد</small></div><div><b>4.8</b><small>رضا العملاء</small></div><div><b>3.2 يوم</b><small>متوسط الإنجاز</small></div></div></div><img src="/brand/team-professional.png" alt="فريق Purity Ritual من الرجال والنساء بالزي المعتمد"/></section>
+function Dashboard({ name, notify, canCreate, onCreate }: { name:string; notify:(m:string)=>void; canCreate:boolean; onCreate:()=>void }) {
+  const [data,setData]=useState<{requests:Record<string,unknown>[];quotes:Record<string,unknown>[];payments:Record<string,unknown>[]}>({requests:[],quotes:[],payments:[]});
+  const [loading,setLoading]=useState(true);
+  useEffect(()=>{void (async()=>{const results=await Promise.allSettled([selectRecords("pr_service_requests","select=*&order=created_at.desc"),selectRecords("pr_quotations","select=*&order=created_at.desc"),selectRecords("pr_payments","select=*&order=created_at.desc")]);setData({requests:results[0].status==="fulfilled"?results[0].value:[],quotes:results[1].status==="fulfilled"?results[1].value:[],payments:results[2].status==="fulfilled"?results[2].value:[]});setLoading(false);})();},[]);
+  const currentMonth=new Date().toISOString().slice(0,7);
+  const newRequests=data.requests.filter(r=>r.status==="new");
+  const scheduled=data.requests.filter(r=>["scheduled","in_progress"].includes(String(r.status)));
+  const waitingQuotes=data.quotes.filter(q=>q.status==="sent");
+  const monthPayments=data.payments.filter(p=>String(p.paid_at||p.created_at||"").startsWith(currentMonth));
+  const paid=monthPayments.reduce((sum,p)=>sum+Number(p.amount||0),0);
+  const recentRows=data.requests.slice(0,6).map(r=>[String(r.request_no||"—"),`${r.customer_name||"عميل"} — ${r.service_type||"خدمة"}`,String(r.address||r.city||"—"),workflowLabels[String(r.status)]||String(r.status||"—"),"عرض"]);
+  return <div className="page"><section className="pagehead"><div><p>{new Intl.DateTimeFormat("ar-SA",{dateStyle:"full"}).format(new Date())}</p><h1>مرحبًا، {name}</h1><span>هذه البيانات الفعلية المسجلة في النظام.</span></div>{canCreate&&<button className="primary" onClick={onCreate}><Plus/>طلب خدمة جديد</button>}</section>
+    <section className="stats"><Stat label="طلبات جديدة" value={String(newRequests.length)} note="من قاعدة البيانات" icon={<ClipboardList/>}/><Stat label="خدمات مجدولة أو جارية" value={String(scheduled.length)} note="تحتاج متابعة" icon={<CalendarDays/>}/><Stat label="عروض بانتظار العميل" value={String(waitingQuotes.length)} note="بانتظار الاعتماد" icon={<FileText/>}/><Stat label="تحصيل هذا الشهر" value={paid.toLocaleString("ar-SA")} note="ر.س محصلة فعليًا" icon={<WalletCards/>}/></section>
+    <section className="panel"><h2>أحدث طلبات الخدمة</h2>{loading?<div className="emptyState">جاري تحميل البيانات...</div>:recentRows.length?<DataTable columns={["الطلب","العميل والخدمة","الموقع","الحالة","الإجراء"]} rows={recentRows} notify={notify}/>:<div className="emptyState">لا توجد طلبات حقيقية حتى الآن</div>}</section>
   </div>;
 }
 
@@ -134,6 +139,38 @@ function WorkflowBoard({ notify }: { notify: (m: string) => void }) {
   </div>;
 }
 
+function LeadBoard({ notify }: { notify:(m:string)=>void }) {
+  const [leads,setLeads]=useState<Record<string,unknown>[]>([]);
+  const [loading,setLoading]=useState(true);
+  const load=()=>selectRecords("pr_public_quote_requests","select=*&order=created_at.desc").then(setLeads).catch(e=>notify(e instanceof Error?e.message:"تعذر تحميل الطلبات")).finally(()=>setLoading(false));
+  useEffect(()=>{void load();},[]);
+  const convert=async(id:string)=>{try{await callRpc("pr_convert_quote_request",{p_public_id:id});notify("تم تحويل الطلب إلى إدارة المشاريع والتسعير");await load();}catch(e){notify(e instanceof Error?e.message:"تعذر تحويل الطلب");}};
+  return <div className="page management"><section className="pagehead"><div><p>المبيعات والتسويق</p><h1>طلبات عروض السعر</h1><span>طلبات حقيقية واردة من الموقع، جاهزة للتأهيل والتحويل للمشاريع.</span></div></section>{loading?<div className="emptyState">جاري التحميل...</div>:!leads.length?<div className="emptyState">لا توجد طلبات عروض سعر حقيقية</div>:<section className="leadGrid">{leads.map(l=><article key={String(l.id)}><header><div><small>{new Date(String(l.created_at)).toLocaleDateString("ar-SA")}</small><h3>{String(l.full_name)}</h3></div><span>{l.status==="converted"?"محول للمشاريع":l.status==="followup"?"قيد المتابعة":"جديد"}</span></header><p>{String(l.service_type)} — {String(l.district||l.city||"جدة")}</p><div><a href={`tel:${l.phone}`}><Phone/>اتصال</a><a href={`https://wa.me/${String(l.phone).replace(/\D/g,"")}`} target="_blank" rel="noreferrer">واتساب</a>{!l.converted_request_id&&<button onClick={()=>convert(String(l.id))}>تحويل لإدارة المشاريع</button>}</div></article>)}</section>}</div>;
+}
+
+function FollowupBoard({ notify }: { notify:(m:string)=>void }) {
+  const [leads,setLeads]=useState<Record<string,unknown>[]>([]);
+  const [notes,setNotes]=useState<Record<string,string>>({});
+  const [dates,setDates]=useState<Record<string,string>>({});
+  const load=()=>selectRecords("pr_public_quote_requests","select=*&order=created_at.desc").then(setLeads).catch(e=>notify(e instanceof Error?e.message:"تعذر تحميل المتابعات"));
+  useEffect(()=>{void load();},[]);
+  const save=async(l:Record<string,unknown>)=>{const id=String(l.id);if(!notes[id]){notify("اكتب نتيجة المتابعة");return;}try{await callRpc("pr_add_followup",{p_public_id:id,p_request_id:l.converted_request_id||null,p_channel:"phone",p_note:notes[id],p_outcome:"contacted",p_next:dates[id]?new Date(dates[id]).toISOString():null});notify("تم حفظ متابعة العميل");setNotes({...notes,[id]:""});await load();}catch(e){notify(e instanceof Error?e.message:"تعذر حفظ المتابعة");}};
+  return <div className="page management"><section className="pagehead"><div><p>خدمة العملاء والتسويق</p><h1>متابعة العملاء</h1><span>سجل الاتصالات والنتائج وموعد المتابعة القادمة لكل عميل.</span></div></section>{!leads.length?<div className="emptyState">لا توجد عملاء للمتابعة</div>:<section className="followupList">{leads.map(l=>{const id=String(l.id);return <article key={id}><div><h3>{String(l.full_name)}</h3><p>{String(l.phone)} — {String(l.service_type)}</p><small>{l.next_followup_at?`المتابعة القادمة: ${new Date(String(l.next_followup_at)).toLocaleString("ar-SA")}`:"لم تحدد متابعة قادمة"}</small></div><input value={notes[id]||""} onChange={e=>setNotes({...notes,[id]:e.target.value})} placeholder="نتيجة الاتصال أو الملاحظة"/><input type="datetime-local" value={dates[id]||""} onChange={e=>setDates({...dates,[id]:e.target.value})}/><button onClick={()=>save(l)}>حفظ المتابعة</button></article>})}</section>}</div>;
+}
+
+function ReportsBoard({ notify }: { notify:(m:string)=>void }) {
+  const [requestsData,setRequestsData]=useState<Record<string,unknown>[]>([]);
+  const [invoices,setInvoices]=useState<Record<string,unknown>[]>([]);
+  const [payments,setPayments]=useState<Record<string,unknown>[]>([]);
+  const [selected,setSelected]=useState<Record<string,unknown>|null>(null);
+  const load=async()=>{const r=await Promise.allSettled([selectRecords("pr_service_requests","select=*&order=created_at.desc"),selectRecords("pr_invoices","select=*&order=created_at.desc"),selectRecords("pr_payments","select=*&order=created_at.desc")]);if(r[0].status==="fulfilled")setRequestsData(r[0].value);if(r[1].status==="fulfilled")setInvoices(r[1].value);if(r[2].status==="fulfilled")setPayments(r[2].value);};
+  useEffect(()=>{void load();},[]);
+  const billed=invoices.reduce((s,i)=>s+Number(i.total||0),0),collected=payments.reduce((s,p)=>s+Number(p.amount||0),0);
+  const close=async(id:string)=>{try{await callRpc("pr_close_service_request",{p_request_id:id});notify("تم إغلاق الطلب ماليًا وتشغيليًا");await load();}catch(e){notify(e instanceof Error?e.message:"تعذر إغلاق الطلب");}};
+  return <div className="page management"><section className="pagehead"><div><p>تقارير فعلية</p><h1>التقارير والإغلاق</h1><span>ملخص التنفيذ والفوترة والتحصيل وإغلاق الطلبات المسددة.</span></div></section><section className="stats"><Stat label="إجمالي الفواتير" value={billed.toLocaleString("ar-SA")} note="ر.س" icon={<ReceiptText/>}/><Stat label="إجمالي التحصيل" value={collected.toLocaleString("ar-SA")} note="ر.س" icon={<WalletCards/>}/><Stat label="الرصيد المستحق" value={Math.max(0,billed-collected).toLocaleString("ar-SA")} note="ر.س" icon={<Clock3/>}/><Stat label="طلبات مغلقة" value={String(requestsData.filter(r=>r.closed_at).length)} note="مغلقة بالكامل" icon={<CheckCircle2/>}/></section><section className="reportColumns"><div className="panel"><h2>الفواتير النهائية</h2>{invoices.length?invoices.map(i=><article className="reportRow" key={String(i.id)}><div><strong>{String(i.invoice_no)}</strong><span>{String(i.customer_name)} — {Number(i.total||0).toLocaleString("ar-SA")} ر.س</span></div><b>{i.status==="paid"?"مدفوعة":i.status==="partially_paid"?"جزئية":"مستحقة"}</b><button onClick={()=>setSelected(i)}>طباعة</button></article>):<div className="emptyState">لا توجد فواتير</div>}</div><div className="panel"><h2>طلبات جاهزة للإغلاق</h2>{requestsData.filter(r=>r.status==="completed"&&!r.closed_at).length?requestsData.filter(r=>r.status==="completed"&&!r.closed_at).map(r=><article className="reportRow" key={String(r.id)}><div><strong>{String(r.request_no)}</strong><span>{String(r.customer_name)} — {String(r.service_type)}</span></div><button onClick={()=>close(String(r.id))}>إغلاق الطلب</button></article>):<div className="emptyState">لا توجد طلبات جاهزة للإغلاق</div>}</div></section>
+  <Dialog open={Boolean(selected)} onOpenChange={v=>!v&&setSelected(null)}><DialogContent dir="rtl" className="invoicePrintDialog"><div className="invoicePrintCard"><header><img src="/brand/logo.png" alt="Purity Ritual"/><div><h2>فاتورة ضريبية</h2><strong>{String(selected?.invoice_no||"")}</strong></div></header><section><p><b>العميل:</b> {String(selected?.customer_name||"")}</p><p><b>البيان:</b> {String(selected?.description||"")}</p><p><b>تاريخ الاستحقاق:</b> {String(selected?.due_date||"—")}</p></section><table><tbody><tr><td>المبلغ قبل الضريبة</td><td>{Number(selected?.subtotal||0).toLocaleString("ar-SA")} ر.س</td></tr><tr><td>ضريبة القيمة المضافة</td><td>{(Number(selected?.total||0)-Number(selected?.subtotal||0)).toLocaleString("ar-SA")} ر.س</td></tr><tr><th>الإجمالي</th><th>{Number(selected?.total||0).toLocaleString("ar-SA")} ر.س</th></tr></tbody></table><footer>Purity Ritual — +966 55 533 0406 — ahmedazi911@gmail.com</footer></div><button className="primary printButton" onClick={()=>window.print()}>طباعة الفاتورة</button></DialogContent></Dialog></div>;
+}
+
 function EmployeeTasks({ notify }: { notify: (m: string) => void }) {
   const [tasks, setTasks] = useState<Record<string, unknown>[]>([]);
   const [state, setState] = useState("جاري تحميل المهام...");
@@ -144,7 +181,7 @@ function EmployeeTasks({ notify }: { notify: (m: string) => void }) {
 }
 
 function EmployeesPermissions({ notify }: { notify: (m: string) => void }) {
-  const sectionChoices = ["دورة التشغيل", "طلبات الخدمة", "العملاء", "عروض الأسعار", "العقود", "الفواتير والتحصيل"];
+  const sectionChoices = ["طلبات عروض السعر","إدارة المشاريع","خدمة العملاء والتسويق","طلبات الخدمة","العملاء","عروض الأسعار","العقود","الفواتير والتحصيل","التقارير والإغلاق"];
   const [staff, setStaff] = useState<Record<string, unknown>[]>([]);
   const [selected, setSelected] = useState<Record<string, unknown> | null>(null);
   const [taskEmployee, setTaskEmployee] = useState("");
@@ -155,30 +192,30 @@ function EmployeesPermissions({ notify }: { notify: (m: string) => void }) {
   const addTask = async (event: React.FormEvent<HTMLFormElement>) => { event.preventDefault(); const data = new FormData(event.currentTarget); try { await insertRecord("pr_employee_tasks", { employee_id: taskEmployee, title: data.get("title"), description: data.get("description"), due_date: data.get("due_date") || null, priority: data.get("priority"), created_by: getUserId() }); notify("تم إسناد المهمة للموظف"); setTaskEmployee(""); } catch (e) { notify(e instanceof Error ? e.message : "تعذر إسناد المهمة"); } };
   const addEmployee = async (event: React.FormEvent<HTMLFormElement>) => { event.preventDefault(); const data = new FormData(event.currentTarget); const password = String(data.get("password")); if (password.length < 8) { notify("كلمة المرور يجب ألا تقل عن 8 أحرف"); return; } try { const id = await createEmployeeAccount(String(data.get("email")), password, String(data.get("full_name")), String(data.get("phone"))); await callRpc("pr_set_employee_access", { target_id: id, new_role: data.get("role"), new_job_title: data.get("job_title"), new_permissions: data.getAll("permissions"), new_is_active: true }); notify("تم إنشاء الموظف وتفعيل صلاحياته"); setAddOpen(false); await load(); } catch (e) { notify(e instanceof Error ? e.message : "تعذر إنشاء الموظف"); } };
   return <div className="page management"><section className="pagehead"><div><p>الإدارة فقط</p><h1>الموظفون والصلاحيات</h1><span>أضف الموظفين وحدد صلاحياتهم، ثم أسند إليهم المهام.</span></div><button className="primary" onClick={() => setAddOpen(true)}><Plus/>موظف جديد</button></section><section className="staffGrid">{staff.map(s => <article className="staffCard" key={String(s.id)}><div className="staffAvatar">{String(s.full_name || "م").slice(0,1)}</div><div><h3>{String(s.full_name || "موظف")}</h3><p>{String(s.job_title || roleArabic(String(s.role)))}</p><small>{s.is_active === false ? "موقوف" : "نشط"}</small></div><div className="staffActions"><button onClick={() => setSelected(s)}>الصلاحيات</button>{s.role !== "admin" && <button onClick={() => setTaskEmployee(String(s.id))}>إسناد مهمة</button>}</div></article>)}</section>
-  <Dialog open={addOpen} onOpenChange={setAddOpen}><DialogContent dir="rtl" className="createDialog"><DialogHeader><DialogTitle>إضافة موظف جديد</DialogTitle><DialogDescription>أنشئ حساب الموظف وحدد ما يمكنه الوصول إليه.</DialogDescription></DialogHeader><form className="createForm" onSubmit={addEmployee}><div className="formGrid"><label><span>الاسم الكامل</span><input name="full_name" required/></label><label><span>رقم الجوال</span><input name="phone" required inputMode="tel"/></label></div><label><span>البريد الإلكتروني</span><input name="email" type="email" required/></label><div className="formGrid"><label><span>كلمة المرور المؤقتة</span><input name="password" type="password" minLength={8} required/></label><label><span>الدور</span><select name="role" defaultValue="operations"><option value="manager">مدير</option><option value="sales">مبيعات</option><option value="operations">مشرف عمليات</option><option value="accountant">محاسب</option></select></label></div><label><span>المسمى الوظيفي</span><input name="job_title" required placeholder="مثال: مشرف فريق النظافة"/></label><fieldset className="permissionChecks"><legend>الشاشات المسموحة</legend>{sectionChoices.map(x => <label key={x}><input type="checkbox" name="permissions" value={x}/><span>{x}</span></label>)}</fieldset><button className="primary">إنشاء وتفعيل الموظف</button></form></DialogContent></Dialog>
-  <Dialog open={Boolean(selected)} onOpenChange={v => !v && setSelected(null)}><DialogContent dir="rtl" className="createDialog"><DialogHeader><DialogTitle>صلاحيات {String(selected?.full_name || "الموظف")}</DialogTitle><DialogDescription>تنعكس الصلاحيات على قائمة الموظف فور دخوله التالي.</DialogDescription></DialogHeader>{selected && <form className="createForm" onSubmit={savePermissions}><label><span>الدور الوظيفي</span><select name="role" defaultValue={String(selected.role)}><option value="manager">مدير</option><option value="sales">مبيعات</option><option value="operations">مشرف عمليات</option><option value="accountant">محاسب</option></select></label><label><span>المسمى الوظيفي</span><input name="job_title" defaultValue={String(selected.job_title || "")}/></label><fieldset className="permissionChecks"><legend>الشاشات المسموحة</legend>{sectionChoices.map(x => <label key={x}><input type="checkbox" name="permissions" value={x} defaultChecked={(selected.permissions as string[] || []).includes(x)}/><span>{x}</span></label>)}</fieldset><label className="activeCheck"><input type="checkbox" name="is_active" defaultChecked={selected.is_active !== false}/><span>الحساب فعال</span></label><button className="primary">حفظ وتفعيل الصلاحيات</button></form>}</DialogContent></Dialog>
+  <Dialog open={addOpen} onOpenChange={setAddOpen}><DialogContent dir="rtl" className="createDialog"><DialogHeader><DialogTitle>إضافة موظف جديد</DialogTitle><DialogDescription>أنشئ حساب الموظف وحدد ما يمكنه الوصول إليه.</DialogDescription></DialogHeader><form className="createForm" onSubmit={addEmployee}><div className="formGrid"><label><span>الاسم الكامل</span><input name="full_name" required/></label><label><span>رقم الجوال</span><input name="phone" required inputMode="tel"/></label></div><label><span>البريد الإلكتروني</span><input name="email" type="email" required/></label><div className="formGrid"><label><span>كلمة المرور المؤقتة</span><input name="password" type="password" minLength={8} required/></label><label><span>الدور</span><select name="role" defaultValue="operations"><option value="manager">مدير مشاريع</option><option value="customer_service">خدمة العملاء</option><option value="marketing">التسويق</option><option value="sales">مبيعات</option><option value="operations">مشرف عمليات</option><option value="accountant">محاسب</option></select></label></div><label><span>المسمى الوظيفي</span><input name="job_title" required placeholder="مثال: مشرف فريق النظافة"/></label><fieldset className="permissionChecks"><legend>الشاشات المسموحة</legend>{sectionChoices.map(x => <label key={x}><input type="checkbox" name="permissions" value={x}/><span>{x}</span></label>)}</fieldset><button className="primary">إنشاء وتفعيل الموظف</button></form></DialogContent></Dialog>
+  <Dialog open={Boolean(selected)} onOpenChange={v => !v && setSelected(null)}><DialogContent dir="rtl" className="createDialog"><DialogHeader><DialogTitle>صلاحيات {String(selected?.full_name || "الموظف")}</DialogTitle><DialogDescription>تنعكس الصلاحيات على قائمة الموظف فور دخوله التالي.</DialogDescription></DialogHeader>{selected && <form className="createForm" onSubmit={savePermissions}><label><span>الدور الوظيفي</span><select name="role" defaultValue={String(selected.role)}><option value="manager">مدير مشاريع</option><option value="customer_service">خدمة العملاء</option><option value="marketing">التسويق</option><option value="sales">مبيعات</option><option value="operations">مشرف عمليات</option><option value="accountant">محاسب</option></select></label><label><span>المسمى الوظيفي</span><input name="job_title" defaultValue={String(selected.job_title || "")}/></label><fieldset className="permissionChecks"><legend>الشاشات المسموحة</legend>{sectionChoices.map(x => <label key={x}><input type="checkbox" name="permissions" value={x} defaultChecked={(selected.permissions as string[] || []).includes(x)}/><span>{x}</span></label>)}</fieldset><label className="activeCheck"><input type="checkbox" name="is_active" defaultChecked={selected.is_active !== false}/><span>الحساب فعال</span></label><button className="primary">حفظ وتفعيل الصلاحيات</button></form>}</DialogContent></Dialog>
   <Dialog open={Boolean(taskEmployee)} onOpenChange={v => !v && setTaskEmployee("")}><DialogContent dir="rtl" className="createDialog"><DialogHeader><DialogTitle>إسناد مهمة جديدة</DialogTitle><DialogDescription>ستظهر المهمة داخل شاشة «مهامي» للموظف المحدد فقط.</DialogDescription></DialogHeader><form className="createForm" onSubmit={addTask}><label><span>عنوان المهمة</span><input name="title" required/></label><label><span>التفاصيل</span><textarea name="description" rows={3}/></label><div className="formGrid"><label><span>تاريخ الاستحقاق</span><input type="date" name="due_date"/></label><label><span>الأولوية</span><select name="priority" defaultValue="normal"><option value="normal">عادية</option><option value="high">مرتفعة</option><option value="urgent">عاجلة</option></select></label></div><button className="primary">إسناد المهمة</button></form></DialogContent></Dialog></div>;
 }
 
-function roleArabic(role: string) { return ({ super_admin: "السوبر أدمن", admin: "المدير العام", manager: "مدير العمليات", sales: "المبيعات", operations: "مشرف العمليات", accountant: "المحاسب" } as Record<string,string>)[role] || role; }
+function roleArabic(role: string) { return ({ super_admin:"السوبر أدمن",admin:"المدير العام",manager:"مدير المشاريع",project_manager:"مدير المشاريع",customer_service:"خدمة العملاء",marketing:"التسويق",sales:"المبيعات",operations:"مشرف العمليات",accountant:"المحاسب" } as Record<string,string>)[role] || role; }
 
 function Management({ section, connected, notify, canCreate, canExport, onCreate, onRecordPayment }: { section: string; connected: boolean; notify: (m: string) => void; canCreate: boolean; canExport: boolean; onCreate: () => void; onRecordPayment: () => void }) {
   const [filter, setFilter] = useState("الكل");
-  const demoRows = useMemo(() => getRows(section), [section]);
-  const [rows, setRows] = useState<string[][]>(demoRows);
+  const [rows, setRows] = useState<string[][]>([]);
   const [loadState, setLoadState] = useState("");
   useEffect(() => {
-    setRows(demoRows);
+    setRows([]);
     if (!connected) return;
     const tables: Record<string, string> = { "طلبات الخدمة": "pr_service_requests", "العملاء": "pr_customers", "عروض الأسعار": "pr_quotations", "العقود": "pr_contracts", "الفواتير والتحصيل": "pr_invoices" };
     setLoadState("جاري تحميل البيانات...");
-    selectRecords(tables[section], "select=*&order=created_at.desc&limit=50")
+    const query = section === "العملاء" ? "role=eq.customer&select=*&order=created_at.desc&limit=50" : "select=*&order=created_at.desc&limit=50";
+    selectRecords(section === "العملاء" ? "pr_profiles" : tables[section], query)
       .then(data => { setRows(mapDatabaseRows(section, data)); setLoadState(data.length ? "بيانات محدثة" : "لا توجد سجلات بعد"); })
       .catch(error => setLoadState(error instanceof Error ? error.message : "تعذر التحميل"));
-  }, [section, connected, demoRows]);
+  }, [section, connected]);
   return <div className="page management"><section className="pagehead managementhead"><div><p>إدارة العمليات</p><h1>{section}</h1><span>{info[section].note}</span>{connected && <small className="liveData">{loadState}</small>}</div><div className="headActions">{section === "الفواتير والتحصيل" && canCreate && <button className="secondaryAction" onClick={onRecordPayment}>تسجيل دفعة</button>}{canCreate ? <button className="primary" onClick={onCreate}><Plus/>{info[section].action}</button> : <span className="readOnly">صلاحية عرض فقط</span>}</div></section>
-    <section className="miniStats"><Mini label="الإجمالي" value={String(rows.length)} icon={<ClipboardList/>}/><Mini label="بانتظار إجراء" value="2" icon={<Clock3/>}/><Mini label="مكتمل هذا الشهر" value="18" icon={<CheckCircle2/>}/></section>
-    <section className="panel dataPanel"><div className="dataTools"><div className="filters"><Filter/>{["الكل", "جديد", "قيد التنفيذ", "مكتمل"].map(item => <button key={item} className={filter === item ? "chosen" : ""} onClick={() => setFilter(item)}>{item}</button>)}</div>{canExport && <div className="export"><button onClick={() => notify("تم السماح بتصدير البيانات")}><Download/>تصدير</button></div>}</div><DataTable columns={info[section].columns} rows={rows} notify={notify}/></section>
+    <section className="miniStats"><Mini label="السجلات الحقيقية" value={String(rows.length)} icon={<ClipboardList/>}/></section>
+    <section className="panel dataPanel"><div className="dataTools"><div className="filters"><Filter/>{["الكل", "جديد", "قيد التنفيذ", "مكتمل"].map(item => <button key={item} className={filter === item ? "chosen" : ""} onClick={() => setFilter(item)}>{item}</button>)}</div>{canExport && <div className="export"><button onClick={() => notify("تم تجهيز تصدير البيانات الحقيقية")}><Download/>تصدير</button></div>}</div>{rows.length?<DataTable columns={info[section].columns} rows={rows} notify={notify}/>:<div className="emptyState">{loadState||"لا توجد سجلات حقيقية"}</div>}</section>
   </div>;
 }
 
@@ -192,14 +229,6 @@ function mapDatabaseRows(section: string, data: Record<string, unknown>[]): stri
 }
 
 function DataTable({ columns, rows, notify }: { columns: string[]; rows: string[][]; notify: (m: string) => void }) { return <div className="tablewrap"><table className="managementTable"><thead><tr>{columns.map(c => <th key={c}>{c}</th>)}</tr></thead><tbody>{rows.map((row, ri) => <tr key={ri}>{row.map((cell, ci) => <td key={ci}>{ci === row.length - 1 && ["عرض", "إرسال"].includes(cell) ? <button className="rowAction" onClick={() => notify(cell === "إرسال" ? "تم تجهيز العرض للإرسال" : "تم فتح التفاصيل")}>{cell === "إرسال" ? <Send/> : <Eye/>}{cell}</button> : <span className={cell.includes("مستحق") ? "due" : ""}>{cell}</span>}</td>)}</tr>)}</tbody></table></div>; }
-
-function getRows(section: string): string[][] {
-  if (section === "طلبات الخدمة") return requests;
-  if (section === "العملاء") return [["شركة أفق الأعمال", "055 982 1470", "تنظيف مكاتب دوري", "0 ر.س", "عرض"], ["سارة أحمد", "055 421 8860", "تنظيف عميق لفيلا", "2,875 ر.س", "عرض"], ["معرض لوميير", "050 773 2190", "تلميع أرضيات", "7,250 ر.س", "عرض"]];
-  if (section === "عروض الأسعار") return [["PR-Q-2026-0007", "سارة أحمد", "2,875 ر.س", "بانتظار الاعتماد", "إرسال"], ["PR-Q-2026-0006", "معرض لوميير", "7,250 ر.س", "تم الإرسال", "عرض"], ["PR-Q-2026-0005", "شركة أفق الأعمال", "4,600 ر.س", "معتمد", "عرض"]];
-  if (section === "العقود") return [["PR-C-2026-0011", "شركة أفق الأعمال", "12 شهرًا", "55,200 ر.س", "نشط"], ["PR-C-2026-0010", "معرض لوميير", "6 أشهر", "43,500 ر.س", "بانتظار التوقيع"], ["PR-C-2026-0009", "مجمع عيادات الروضة", "12 شهرًا", "78,000 ر.س", "نشط"]];
-  return [["PR-INV-2026-0042", "شركة أفق الأعمال", "15 سبتمبر 2026", "4,600 ر.س", "مستحق"], ["PR-INV-2026-0041", "معرض لوميير", "10 سبتمبر 2026", "7,250 ر.س", "مستحق اليوم"], ["PR-INV-2026-0040", "محمد السالم", "5 سبتمبر 2026", "5,900 ر.س", "مدفوع"]];
-}
 
 function Customer({ notify, onCreate }: { notify: (m: string) => void; onCreate: () => void }) {
   const [requestsData,setRequestsData]=useState<Record<string,unknown>[]>([]);
@@ -269,7 +298,7 @@ function CreateForm({ type, onClose, onSaved, onNeedLogin }: { type: string | nu
   const isClient = type === "إضافة عميل";
   const isPayment = type === "تسجيل دفعة";
   return <Dialog open={Boolean(type)} onOpenChange={open => !open && onClose()}><DialogContent dir="rtl" className="createDialog"><DialogHeader><DialogTitle>{type}</DialogTitle><DialogDescription>أدخل البيانات المطلوبة ثم اضغط حفظ.</DialogDescription></DialogHeader><form className="createForm" onSubmit={save}>
-    <label><span>{isPayment ? "رقم الفاتورة" : isClient ? "اسم العميل" : "العميل"}</span><input name="client" required placeholder={isPayment ? "PR-INV-2026-0001" : "اكتب اسم العميل"}/></label>
+    <label><span>{isPayment ? "رقم الفاتورة" : isClient ? "اسم العميل" : "العميل"}</span><input name="client" required placeholder={isPayment ? "اكتب رقم الفاتورة" : "اكتب اسم العميل"}/></label>
     <div className="formGrid"><label><span>{isPayment ? "مرجع التحويل" : "رقم الجوال"}</span><input name="phone" required placeholder={isPayment ? "رقم العملية البنكية" : "05xxxxxxxx"}/></label><label><span>{isPayment ? "المبلغ المحصل (ر.س)" : type === "فاتورة جديدة" || type === "عرض سعر جديد" || type === "عقد جديد" ? "القيمة (ر.س)" : "الحي / الموقع"}</span><input name="value" required placeholder={type === "طلب خدمة" ? "جدة - الحي" : "0.00"}/></label></div>
     {!isClient && <label><span>{isPayment ? "طريقة الدفع" : type === "عقد جديد" ? "مدة العقد" : "الخدمة / البيان"}</span><select name="service" required><option value="">اختر</option>{isPayment ? <><option value="bank_transfer">تحويل بنكي</option><option value="cash">نقدي</option><option value="card">بطاقة</option></> : <><option>تنظيف منازل</option><option>تنظيف مكاتب</option><option>تنظيف بعد التشطيب</option><option>تلميع أرضيات</option><option>عقد نظافة دوري</option></>}</select></label>}
     <label><span>ملاحظات</span><textarea name="notes" rows={3} placeholder="أي تفاصيل إضافية"/></label>

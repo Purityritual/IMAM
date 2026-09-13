@@ -2,14 +2,23 @@
 -- Prerequisite: run 007 once. This file is idempotent.
 begin;
 
+create table if not exists public.pr_public_quote_requests(
+ id uuid primary key default gen_random_uuid(),full_name text not null,phone text not null,email text,
+ service_type text not null,city text not null default 'جدة',district text,notes text,
+ status text not null default 'new',created_at timestamptz not null default now());
+alter table public.pr_public_quote_requests enable row level security;
+drop policy if exists "public can submit quote requests" on public.pr_public_quote_requests;
+create policy "public can submit quote requests" on public.pr_public_quote_requests for insert to anon,authenticated with check(true);
+grant insert on public.pr_public_quote_requests to anon,authenticated;
+
 alter table public.pr_profiles add column if not exists job_title text;
 alter table public.pr_profiles add column if not exists permissions text[] not null default '{}';
 drop trigger if exists pr_protect_employee_access_trigger on public.pr_profiles;
 alter table public.pr_profiles drop constraint if exists pr_profiles_role_check;
-alter table public.pr_profiles add constraint pr_profiles_role_check check(role in('customer','super_admin','admin','manager','sales','operations','accountant'));
+alter table public.pr_profiles add constraint pr_profiles_role_check check(role in('customer','super_admin','admin','manager','sales','operations','accountant','customer_service','marketing'));
 
 create or replace function public.pr_is_staff() returns boolean language sql stable security definer set search_path=public as $$
- select exists(select 1 from public.pr_profiles where id=auth.uid() and is_active=true and role in('super_admin','admin','manager','sales','operations','accountant'));$$;
+ select exists(select 1 from public.pr_profiles where id=auth.uid() and is_active=true and role in('super_admin','admin','manager','sales','operations','accountant','customer_service','marketing'));$$;
 create or replace function public.pr_has_role(allowed_roles text[]) returns boolean language sql stable security definer set search_path=public as $$
  select lower(coalesce(auth.jwt()->>'email',''))='melnaeema@gmail.com' or exists(select 1 from public.pr_profiles where id=auth.uid() and is_active=true and(role='super_admin' or role=any(allowed_roles)));$$;
 create or replace function public.pr_is_super_admin() returns boolean language sql stable security definer set search_path=public,auth as $$
@@ -48,7 +57,7 @@ create function public.pr_set_employee_access(target_id uuid,new_role text,new_j
 returns void language plpgsql security definer set search_path=public,auth as $$
 begin
  if not public.pr_is_super_admin() then raise exception 'Super Admin only';end if;
- if new_role not in('manager','sales','operations','accountant') then raise exception 'Invalid employee role';end if;
+ if new_role not in('manager','sales','operations','accountant','customer_service','marketing') then raise exception 'Invalid employee role';end if;
  insert into public.pr_profiles(id,full_name,phone,role,job_title,permissions,is_active)
  select u.id,coalesce(u.raw_user_meta_data->>'full_name',''),u.raw_user_meta_data->>'phone',new_role,new_job_title,coalesce(new_permissions,'{}'),new_is_active from auth.users u where u.id=target_id
  on conflict(id) do update set role=excluded.role,job_title=excluded.job_title,permissions=excluded.permissions,is_active=excluded.is_active,updated_at=now();
@@ -145,8 +154,8 @@ begin
   elsif p_action='quote' and r.status in('new','reviewing') then
     if coalesce(p_amount,0)<=0 then raise exception 'قيمة العرض مطلوبة'; end if;
     if exists(select 1 from public.pr_quotations where request_id=r.id and status<>'cancelled') then raise exception 'يوجد عرض سعر لهذا الطلب'; end if;
-    insert into public.pr_quotations(request_id,customer_id,status,subtotal,vat_amount,total,scope,created_by)
-    values(r.id,r.customer_id,'sent',p_amount,p_amount*.15,p_amount*1.15,coalesce(p_note,r.service_type),auth.uid());
+    insert into public.pr_quotations(request_id,customer_id,customer_name,status,subtotal,vat_amount,total,scope,created_by)
+    values(r.id,r.customer_id,coalesce(r.customer_name,'عميل'),'sent',p_amount,p_amount*.15,p_amount*1.15,coalesce(p_note,r.service_type),auth.uid());
     update public.pr_service_requests set status='quoted',quoted_total=p_amount*1.15,updated_at=now() where id=p_request_id;
   elsif p_action='assign' and r.status='approved' then
     if p_employee_id is null then raise exception 'اختر الموظف'; end if;
@@ -217,5 +226,68 @@ grant execute on function public.pr_admin_workflow(uuid,text,numeric,uuid,text) 
 grant execute on function public.pr_customer_quote_response(uuid,boolean,text) to authenticated;
 grant execute on function public.pr_record_invoice_payment(uuid,numeric,text,text) to authenticated;
 grant select on public.pr_invoices,public.pr_payments to authenticated;
+
+alter table public.pr_service_requests add column if not exists closed_at timestamptz;
+alter table public.pr_service_requests add column if not exists closed_by uuid references public.pr_profiles(id);
+alter table public.pr_public_quote_requests add column if not exists assigned_to uuid references public.pr_profiles(id);
+alter table public.pr_public_quote_requests add column if not exists converted_request_id uuid references public.pr_service_requests(id);
+alter table public.pr_public_quote_requests add column if not exists next_followup_at timestamptz;
+
+create table if not exists public.pr_customer_followups(
+ id uuid primary key default gen_random_uuid(),public_quote_id uuid references public.pr_public_quote_requests(id) on delete cascade,
+ request_id uuid references public.pr_service_requests(id) on delete cascade,channel text not null default 'phone',
+ note text not null,outcome text,status text not null default 'open',next_followup_at timestamptz,
+ created_by uuid not null references public.pr_profiles(id),created_at timestamptz not null default now());
+alter table public.pr_customer_followups enable row level security;
+drop policy if exists "staff followups" on public.pr_customer_followups;
+create policy "staff followups" on public.pr_customer_followups for all to authenticated
+using(public.pr_has_role(array['admin','manager','sales','customer_service','marketing']))
+with check(public.pr_has_role(array['admin','manager','sales','customer_service','marketing']) and created_by=auth.uid());
+grant select,insert,update on public.pr_customer_followups to authenticated;
+
+drop policy if exists "staff can read quote requests" on public.pr_public_quote_requests;
+create policy "staff can read quote requests" on public.pr_public_quote_requests for select to authenticated
+using(public.pr_has_role(array['admin','manager','sales','customer_service','marketing']));
+drop policy if exists "staff can update quote requests" on public.pr_public_quote_requests;
+create policy "staff can update quote requests" on public.pr_public_quote_requests for update to authenticated
+using(public.pr_has_role(array['admin','manager','sales','customer_service','marketing']))
+with check(public.pr_has_role(array['admin','manager','sales','customer_service','marketing']));
+grant select,update on public.pr_public_quote_requests to authenticated;
+
+create or replace function public.pr_convert_quote_request(p_public_id uuid)
+returns uuid language plpgsql security definer set search_path=public as $$
+declare lead public.pr_public_quote_requests%rowtype;new_id uuid;
+begin
+ if not public.pr_has_role(array['admin','sales','marketing']) then raise exception 'غير مصرح';end if;
+ select * into lead from public.pr_public_quote_requests where id=p_public_id for update;
+ if lead.converted_request_id is not null then return lead.converted_request_id;end if;
+ insert into public.pr_service_requests(customer_name,customer_phone,service_type,city,district,notes,created_by,status)
+ values(lead.full_name,lead.phone,lead.service_type,lead.city,lead.district,lead.notes,auth.uid(),'reviewing') returning id into new_id;
+ update public.pr_public_quote_requests set status='converted',converted_request_id=new_id where id=p_public_id;
+ return new_id;
+end;$$;
+
+create or replace function public.pr_add_followup(p_public_id uuid,p_request_id uuid,p_channel text,p_note text,p_outcome text,p_next timestamptz)
+returns uuid language plpgsql security definer set search_path=public as $$
+declare new_id uuid;
+begin
+ if not public.pr_has_role(array['admin','manager','sales','customer_service','marketing']) then raise exception 'غير مصرح';end if;
+ insert into public.pr_customer_followups(public_quote_id,request_id,channel,note,outcome,next_followup_at,created_by)
+ values(p_public_id,p_request_id,coalesce(p_channel,'phone'),p_note,p_outcome,p_next,auth.uid()) returning id into new_id;
+ if p_public_id is not null then update public.pr_public_quote_requests set status='followup',next_followup_at=p_next where id=p_public_id;end if;
+ return new_id;
+end;$$;
+
+create or replace function public.pr_close_service_request(p_request_id uuid)
+returns void language plpgsql security definer set search_path=public as $$
+begin
+ if not public.pr_has_role(array['admin','manager','accountant','customer_service']) then raise exception 'غير مصرح';end if;
+ if not exists(select 1 from public.pr_invoices where request_id=p_request_id and status='paid') then raise exception 'لا يمكن الإغلاق قبل سداد الفاتورة كاملة';end if;
+ update public.pr_service_requests set closed_at=now(),closed_by=auth.uid(),updated_at=now() where id=p_request_id and status='completed';
+ if not found then raise exception 'الطلب غير مكتمل أو مغلق';end if;
+end;$$;
+grant execute on function public.pr_convert_quote_request(uuid) to authenticated;
+grant execute on function public.pr_add_followup(uuid,uuid,text,text,text,timestamptz) to authenticated;
+grant execute on function public.pr_close_service_request(uuid) to authenticated;
 notify pgrst,'reload schema';
 commit;
