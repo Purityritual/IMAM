@@ -5,14 +5,14 @@ import { LayoutDashboard, ClipboardList, Users, FileText, ReceiptText, WalletCar
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { callRpc, createEmployeeAccount, getSession, getUserId, insertPublicRecord, insertRecord, selectRecords, signIn, signOut, signUp, updateRecord } from "@/lib/supabase";
 
-const nav = [["نظرة عامة", LayoutDashboard], ["مهامي", CheckCircle2], ["طلبات الخدمة", ClipboardList], ["العملاء", Users], ["عروض الأسعار", FileText], ["العقود", ReceiptText], ["الفواتير والتحصيل", WalletCards], ["الموظفون والصلاحيات", Settings]] as const;
+const nav = [["نظرة عامة", LayoutDashboard], ["دورة التشغيل", CalendarDays], ["مهامي", CheckCircle2], ["طلبات الخدمة", ClipboardList], ["العملاء", Users], ["عروض الأسعار", FileText], ["العقود", ReceiptText], ["الفواتير والتحصيل", WalletCards], ["الموظفون والصلاحيات", Settings]] as const;
 type Role = "السوبر أدمن" | "المدير العام" | "مدير العمليات" | "المبيعات" | "مشرف العمليات" | "المحاسب";
 const permissions: Record<Role, { sections: string[]; create: string[]; export: boolean }> = {
   "السوبر أدمن": { sections: nav.map(([n]) => n), create: nav.map(([n]) => n), export: true },
   "المدير العام": { sections: nav.filter(([n]) => n !== "الموظفون والصلاحيات").map(([n]) => n), create: ["طلبات الخدمة", "العملاء", "عروض الأسعار", "العقود", "الفواتير والتحصيل"], export: true },
-  "مدير العمليات": { sections: ["نظرة عامة", "مهامي", "طلبات الخدمة", "العملاء"], create: ["طلبات الخدمة"], export: false },
+  "مدير العمليات": { sections: ["نظرة عامة", "دورة التشغيل", "مهامي", "طلبات الخدمة", "العملاء"], create: ["طلبات الخدمة"], export: false },
   "المبيعات": { sections: ["نظرة عامة", "مهامي", "طلبات الخدمة", "العملاء", "عروض الأسعار"], create: ["طلبات الخدمة", "العملاء", "عروض الأسعار"], export: false },
-  "مشرف العمليات": { sections: ["نظرة عامة", "مهامي", "طلبات الخدمة", "العملاء"], create: ["طلبات الخدمة"], export: false },
+  "مشرف العمليات": { sections: ["نظرة عامة", "دورة التشغيل", "مهامي", "طلبات الخدمة", "العملاء"], create: ["طلبات الخدمة"], export: false },
   "المحاسب": { sections: ["نظرة عامة", "مهامي", "العملاء", "العقود", "الفواتير والتحصيل"], create: ["الفواتير والتحصيل"], export: true },
 };
 const requests = [
@@ -43,6 +43,7 @@ export default function Home() {
   const [accountKind, setAccountKind] = useState<"loading" | "staff" | "customer">("loading");
   const [profileName, setProfileName] = useState("المستخدم");
   const [assignedSections, setAssignedSections] = useState<string[]>([]);
+  const [customerRefresh, setCustomerRefresh] = useState(0);
   const basePermit = permissions[role];
   const permit = role === "السوبر أدمن" || !assignedSections.length ? basePermit : { ...basePermit, sections: ["نظرة عامة", "مهامي", ...assignedSections.filter(x => !["نظرة عامة", "مهامي", "الموظفون والصلاحيات"].includes(x))] };
   useEffect(() => {
@@ -67,7 +68,7 @@ export default function Home() {
   if (!sessionChecked) return <div className="authLoading" dir="rtl"><img src="/brand/logo.png" alt="Purity Ritual"/><span>جاري تحميل النظام...</span></div>;
   if (!connected) return <PublicHome onConnected={() => { setConnected(true); setAccountKind("loading"); }}/>;
   if (accountKind === "loading") return <div className="authLoading" dir="rtl"><img src="/brand/logo.png" alt="Purity Ritual"/><span>جاري تجهيز حسابك...</span></div>;
-  if (accountKind === "customer") return <div className="customerOnly" dir="rtl"><header><img src="/brand/logo.png" alt="Purity Ritual"/><strong>بوابة العميل</strong><button onClick={() => { signOut(); setConnected(false); }}>تسجيل الخروج</button></header><Customer notify={notify} onCreate={() => setFormType("طلب خدمة")}/>{notice && <div className="toast"><BadgeCheck/>{notice}</div>}<CreateForm type={formType} onClose={() => setFormType(null)} onNeedLogin={() => undefined} onSaved={(label) => { setFormType(null); notify(`تم إرسال ${label} بنجاح`); }}/></div>;
+  if (accountKind === "customer") return <div className="customerOnly" dir="rtl"><header><img src="/brand/logo.png" alt="Purity Ritual"/><strong>بوابة العميل</strong><button onClick={() => { signOut(); setConnected(false); }}>تسجيل الخروج</button></header><Customer key={customerRefresh} notify={notify} onCreate={() => setFormType("طلب خدمة")}/>{notice && <div className="toast"><BadgeCheck/>{notice}</div>}<CreateForm type={formType} onClose={() => setFormType(null)} onNeedLogin={() => undefined} onSaved={(label) => { setFormType(null); setCustomerRefresh(v=>v+1); notify(`تم إرسال ${label} بنجاح`); }}/></div>;
   return <div className="shell" dir="rtl">
     <aside className={open ? "side open" : "side"}>
       <div className="brand"><img src="/brand/logo.png" alt="شعار Purity Ritual"/><div className="brandname"><strong>Purity</strong><span>Ritual</span></div><button onClick={() => setOpen(false)} aria-label="إغلاق القائمة"><X/></button></div>
@@ -76,7 +77,7 @@ export default function Home() {
       <div className="sidefoot"><div className="profile"><i>{profileName.slice(0,1)}</i><div><strong>{profileName}</strong><small>{role}</small></div><MoreHorizontal/></div></div>
     </aside>
     <main><header className="top"><button className="menub" onClick={() => setOpen(true)} aria-label="فتح القائمة"><Menu/></button><div className="search"><Search/><input placeholder="ابحث عن عميل، طلب، أو فاتورة..." aria-label="البحث"/></div><div className="topactions"><button className="bell" aria-label="الإشعارات"><Bell/><i/></button><button className="accountButton" onClick={() => setLoginOpen(true)}>{role}</button></div></header>
-      {mode === "customer" ? <Customer notify={notify} onCreate={() => setFormType("طلب خدمة")}/> : active === "نظرة عامة" ? <Dashboard notify={notify} canCreate={permit.create.includes("طلبات الخدمة")} onCreate={() => setFormType("طلب خدمة")}/> : active === "مهامي" ? <EmployeeTasks notify={notify}/> : active === "الموظفون والصلاحيات" ? <EmployeesPermissions notify={notify}/> : <Management section={active} connected={connected} notify={notify} canCreate={permit.create.includes(active)} canExport={permit.export} onCreate={() => setFormType(info[active].action)} onRecordPayment={() => setFormType("تسجيل دفعة")}/>} 
+      {mode === "customer" ? <Customer notify={notify} onCreate={() => setFormType("طلب خدمة")}/> : active === "نظرة عامة" ? <Dashboard notify={notify} canCreate={permit.create.includes("طلبات الخدمة")} onCreate={() => setFormType("طلب خدمة")}/> : active === "دورة التشغيل" ? <WorkflowBoard notify={notify}/> : active === "مهامي" ? <EmployeeTasks notify={notify}/> : active === "الموظفون والصلاحيات" ? <EmployeesPermissions notify={notify}/> : <Management section={active} connected={connected} notify={notify} canCreate={permit.create.includes(active)} canExport={permit.export} onCreate={() => setFormType(info[active].action)} onRecordPayment={() => setFormType("تسجيل دفعة")}/>} 
       {notice && <div className="toast"><BadgeCheck/>{notice}</div>}
       <DatabaseLogin open={loginOpen} connected={connected} onClose={() => setLoginOpen(false)} onConnected={() => { setConnected(true); setLoginOpen(false); notify("تم تسجيل الدخول"); }} onDisconnected={() => { setConnected(false); setLoginOpen(false); notify("تم تسجيل الخروج"); }}/>
       <CreateForm type={formType} onClose={() => setFormType(null)} onNeedLogin={() => setLoginOpen(true)} onSaved={(label) => { setFormType(null); notify(`تم حفظ ${label} بنجاح`); }}/>
@@ -92,17 +93,58 @@ function Dashboard({ notify, canCreate, onCreate }: { notify: (m: string) => voi
   </div>;
 }
 
+const workflowLabels: Record<string,string> = { new:"طلب جديد",reviewing:"قيد المراجعة",quoted:"بانتظار اعتماد العرض",approved:"عرض معتمد",scheduled:"تم إسناد الفريق",in_progress:"قيد التنفيذ",completed:"مكتملة",cancelled:"ملغاة" };
+
+function WorkflowBoard({ notify }: { notify: (m: string) => void }) {
+  const [items,setItems] = useState<Record<string,unknown>[]>([]);
+  const [employees,setEmployees] = useState<Record<string,unknown>[]>([]);
+  const [amounts,setAmounts] = useState<Record<string,string>>({});
+  const [assignees,setAssignees] = useState<Record<string,string>>({});
+  const [loading,setLoading] = useState(true);
+  const load = async () => {
+    setLoading(true);
+    try {
+      const [requestsData,staffData] = await Promise.all([
+        selectRecords("pr_service_requests","select=*&order=created_at.desc&limit=100"),
+        selectRecords("pr_profiles","role=in.(manager,sales,operations)&is_active=eq.true&select=id,full_name,job_title,role")
+      ]);
+      setItems(requestsData); setEmployees(staffData);
+    } catch(e) { notify(e instanceof Error ? e.message : "تعذر تحميل دورة التشغيل"); }
+    finally { setLoading(false); }
+  };
+  useEffect(() => { void load(); }, []);
+  const action = async (requestId:string,actionName:string) => {
+    try {
+      await callRpc("pr_admin_workflow",{ p_request_id:requestId,p_action:actionName,p_amount:amounts[requestId] ? Number(amounts[requestId]) : null,p_employee_id:assignees[requestId] || null,p_note:null });
+      notify(actionName==="quote" ? "تم إصدار عرض السعر وإرساله للعميل" : actionName==="invoice" ? "تم إصدار الفاتورة" : "تم تحديث مرحلة الخدمة");
+      await load();
+    } catch(e) { notify(e instanceof Error ? e.message : "تعذر تنفيذ الإجراء"); }
+  };
+  return <div className="page management"><section className="pagehead"><div><p>من الطلب حتى التحصيل</p><h1>دورة تشغيل الخدمة</h1><span>متابعة العميل والفريق والعرض والتنفيذ والفاتورة في مسار واحد.</span></div></section>
+    <section className="workflowSteps">{["طلب جديد","مراجعة","عرض سعر","اعتماد العميل","إسناد موظف","تنفيذ","فاتورة وتحصيل"].map((x,i)=><div key={x}><b>{i+1}</b><span>{x}</span></div>)}</section>
+    {loading ? <div className="emptyState">جاري تحميل الطلبات...</div> : !items.length ? <div className="emptyState">لا توجد طلبات خدمة بعد</div> : <section className="workflowList">{items.map(r => { const id=String(r.id); const status=String(r.status||"new"); return <article className="workflowCard" key={id}><header><div><small>{String(r.request_no||"طلب")}</small><h3>{String(r.customer_name||"عميل")} — {String(r.service_type||"خدمة")}</h3><p>{String(r.address||r.city||"جدة")}</p></div><span className={"stage "+status}>{workflowLabels[status]||status}</span></header><div className="workflowActions">
+      {status==="new" && <button onClick={()=>action(id,"review")}>بدء المراجعة</button>}
+      {status==="reviewing" && <><label><span>السعر قبل الضريبة</span><input type="number" min="1" value={amounts[id]||""} onChange={e=>setAmounts({...amounts,[id]:e.target.value})}/></label><button onClick={()=>action(id,"quote")}>إصدار وإرسال العرض</button></>}
+      {status==="quoted" && <em>بانتظار اعتماد العميل من بوابته</em>}
+      {status==="approved" && <><label><span>الموظف المسؤول</span><select value={assignees[id]||""} onChange={e=>setAssignees({...assignees,[id]:e.target.value})}><option value="">اختر الموظف</option>{employees.map(e=><option key={String(e.id)} value={String(e.id)}>{String(e.full_name||"موظف")} — {String(e.job_title||roleArabic(String(e.role)))}</option>)}</select></label><button onClick={()=>action(id,"assign")}>إسناد وجدولة</button></>}
+      {status==="scheduled" && <button onClick={()=>action(id,"start")}>بدء التنفيذ</button>}
+      {status==="in_progress" && <button onClick={()=>action(id,"complete")}>إنهاء الخدمة</button>}
+      {status==="completed" && <><label><span>قيمة الفاتورة قبل الضريبة</span><input type="number" min="1" value={amounts[id]||String(Number(r.quoted_total||0)/1.15||"")} onChange={e=>setAmounts({...amounts,[id]:e.target.value})}/></label><button onClick={()=>action(id,"invoice")}>إصدار الفاتورة</button></>}
+    </div></article>; })}</section>}
+  </div>;
+}
+
 function EmployeeTasks({ notify }: { notify: (m: string) => void }) {
   const [tasks, setTasks] = useState<Record<string, unknown>[]>([]);
   const [state, setState] = useState("جاري تحميل المهام...");
   const load = () => selectRecords("pr_employee_tasks", "select=*&order=created_at.desc").then(rows => { setTasks(rows); setState(rows.length ? "" : "لا توجد مهام مسندة إليك حاليًا"); }).catch(e => setState(e instanceof Error ? e.message : "تعذر تحميل المهام"));
   useEffect(() => { void load(); }, []);
-  const complete = async (id: string) => { try { await updateRecord("pr_employee_tasks", id, { status: "completed", updated_at: new Date().toISOString() }); notify("تم تحديث المهمة إلى مكتملة"); load(); } catch (e) { notify(e instanceof Error ? e.message : "تعذر تحديث المهمة"); } };
-  return <div className="page management"><section className="pagehead"><div><p>مساحة الموظف</p><h1>مهامي</h1><span>المهام المسندة إلى حسابك فقط.</span></div></section><section className="taskGrid">{tasks.map(t => <article className="taskCard" key={String(t.id)}><div><span className={`priority ${t.priority}`}>{t.priority === "urgent" ? "عاجلة" : t.priority === "high" ? "مرتفعة" : "عادية"}</span><small>{String(t.due_date || "بدون تاريخ")}</small></div><h3>{String(t.title)}</h3><p>{String(t.description || "لا توجد تفاصيل إضافية")}</p><footer><b>{t.status === "completed" ? "مكتملة" : t.status === "in_progress" ? "قيد التنفيذ" : "جديدة"}</b>{t.status !== "completed" && <button onClick={() => complete(String(t.id))}>إنهاء المهمة</button>}</footer></article>)}</section>{state && <div className="emptyState">{state}</div>}</div>;
+  const setTaskStatus = async (id: string,status:string) => { try { await updateRecord("pr_employee_tasks", id, { status, updated_at: new Date().toISOString() }); notify(status==="completed"?"تم إنهاء المهمة":"تم بدء المهمة"); load(); } catch (e) { notify(e instanceof Error ? e.message : "تعذر تحديث المهمة"); } };
+  return <div className="page management"><section className="pagehead"><div><p>مساحة الموظف</p><h1>مهامي</h1><span>ابدأ المهمة، تابع تنفيذها، ثم أكد الإنهاء.</span></div></section><section className="taskGrid">{tasks.map(t => <article className="taskCard" key={String(t.id)}><div><span className={`priority ${t.priority}`}>{t.priority === "urgent" ? "عاجلة" : t.priority === "high" ? "مرتفعة" : "عادية"}</span><small>{String(t.due_date || "بدون تاريخ")}</small></div><h3>{String(t.title)}</h3><p>{String(t.description || "لا توجد تفاصيل إضافية")}</p><footer><b>{t.status === "completed" ? "مكتملة" : t.status === "in_progress" ? "قيد التنفيذ" : "جديدة"}</b>{t.status==="new"?<button onClick={() => setTaskStatus(String(t.id),"in_progress")}>بدء المهمة</button>:t.status==="in_progress"?<button onClick={() => setTaskStatus(String(t.id),"completed")}>إنهاء المهمة</button>:null}</footer></article>)}</section>{state && <div className="emptyState">{state}</div>}</div>;
 }
 
 function EmployeesPermissions({ notify }: { notify: (m: string) => void }) {
-  const sectionChoices = ["طلبات الخدمة", "العملاء", "عروض الأسعار", "العقود", "الفواتير والتحصيل"];
+  const sectionChoices = ["دورة التشغيل", "طلبات الخدمة", "العملاء", "عروض الأسعار", "العقود", "الفواتير والتحصيل"];
   const [staff, setStaff] = useState<Record<string, unknown>[]>([]);
   const [selected, setSelected] = useState<Record<string, unknown> | null>(null);
   const [taskEmployee, setTaskEmployee] = useState("");
@@ -159,7 +201,19 @@ function getRows(section: string): string[][] {
   return [["PR-INV-2026-0042", "شركة أفق الأعمال", "15 سبتمبر 2026", "4,600 ر.س", "مستحق"], ["PR-INV-2026-0041", "معرض لوميير", "10 سبتمبر 2026", "7,250 ر.س", "مستحق اليوم"], ["PR-INV-2026-0040", "محمد السالم", "5 سبتمبر 2026", "5,900 ر.س", "مدفوع"]];
 }
 
-function Customer({ notify, onCreate }: { notify: (m: string) => void; onCreate: () => void }) { return <div className="page customer"><section className="customerhero"><div><span>بوابة العميل</span><h1>أهلًا بك في Purity Ritual</h1><p>تابع طلباتك، اعتمد عروض الأسعار، واطّلع على الفواتير من مكان واحد.</p><button className="primary" onClick={onCreate}><Plus/>اطلب خدمة</button></div><img src="/brand/hero-professional.png" alt="موظفة Purity Ritual بالزي المعتمد"/></section><section className="customercards"><article><Clock3/><span>طلبك الحالي</span><h3>تنظيف عميق للفيلا</h3><p>تم تحديد المعاينة غدًا الساعة 11:30 صباحًا.</p><button onClick={() => notify("تم فتح تفاصيل الطلب")}>عرض التفاصيل</button></article><article><FileText/><span>عرض سعر جديد</span><h3>PR-Q-2026-0007</h3><p>الإجمالي شامل الضريبة: <b>2,875 ر.س</b></p><button onClick={() => notify("تم فتح عرض السعر")}>مراجعة واعتماد</button></article><article><CheckCircle2/><span>آخر خدمة مكتملة</span><h3>تلميع الأرضيات</h3><p>اكتملت في 2 سبتمبر 2026.</p><button onClick={() => notify("تم فتح تقييم الخدمة")}>تقييم الخدمة</button></article></section></div>; }
+function Customer({ notify, onCreate }: { notify: (m: string) => void; onCreate: () => void }) {
+  const [requestsData,setRequestsData]=useState<Record<string,unknown>[]>([]);
+  const [quotes,setQuotes]=useState<Record<string,unknown>[]>([]);
+  const [invoices,setInvoices]=useState<Record<string,unknown>[]>([]);
+  const load=async()=>{ try { const [r,q,i]=await Promise.all([selectRecords("pr_service_requests","select=*&order=created_at.desc"),selectRecords("pr_quotations","select=*&order=created_at.desc"),selectRecords("pr_invoices","select=*&order=created_at.desc")]);setRequestsData(r);setQuotes(q);setInvoices(i); } catch(e){ notify(e instanceof Error?e.message:"تعذر تحميل بياناتك"); } };
+  useEffect(()=>{void load();},[]);
+  const respond=async(id:string,accept:boolean)=>{try{await callRpc("pr_customer_quote_response",{p_quote_id:id,p_accept:accept,p_note:null});notify(accept?"تم اعتماد عرض السعر":"تم رفض العرض");await load();}catch(e){notify(e instanceof Error?e.message:"تعذر تحديث العرض");}};
+  return <div className="page customer"><section className="customerhero"><div><span>بوابة العميل</span><h1>أهلًا بك في Purity Ritual</h1><p>تابع الطلب، اعتمد عرض السعر، وراجع الفاتورة والدفع من مكان واحد.</p><button className="primary" onClick={onCreate}><Plus/>اطلب خدمة</button></div><img src="/brand/hero-professional.png" alt="موظفة Purity Ritual بالزي المعتمد"/></section>
+  <section className="customerFlow"><div><b>1</b><span>إرسال الطلب</span></div><div><b>2</b><span>اعتماد العرض</span></div><div><b>3</b><span>تنفيذ الخدمة</span></div><div><b>4</b><span>الفاتورة والدفع</span></div></section>
+  <section className="portalSection"><h2>طلباتي</h2><div className="portalGrid">{requestsData.length?requestsData.map(r=><article key={String(r.id)}><Clock3/><small>{String(r.request_no||"طلب")}</small><h3>{String(r.service_type)}</h3><p>{workflowLabels[String(r.status)]||String(r.status)}</p></article>):<p className="emptyState">لا توجد طلبات بعد</p>}</div></section>
+  <section className="portalSection"><h2>عروض الأسعار</h2><div className="portalGrid">{quotes.length?quotes.map(q=><article key={String(q.id)}><FileText/><small>{String(q.quote_no||"عرض سعر")}</small><h3>{Number(q.total||0).toLocaleString("ar-SA")} ر.س</h3><p>{q.status==="sent"?"بانتظار قرارك":q.status==="accepted"?"تم الاعتماد":q.status==="rejected"?"مرفوض":String(q.status)}</p>{q.status==="sent"&&<div className="quoteButtons"><button onClick={()=>respond(String(q.id),true)}>اعتماد العرض</button><button className="reject" onClick={()=>respond(String(q.id),false)}>رفض</button></div>}</article>):<p className="emptyState">لا توجد عروض أسعار</p>}</div></section>
+  <section className="portalSection"><h2>الفواتير والدفع</h2><div className="portalGrid">{invoices.length?invoices.map(i=><article key={String(i.id)}><WalletCards/><small>{String(i.invoice_no||"فاتورة")}</small><h3>{Number(i.total||0).toLocaleString("ar-SA")} ر.س</h3><p>{i.status==="paid"?"مدفوعة":i.status==="partially_paid"?"مدفوعة جزئيًا":"مستحقة"}</p></article>):<p className="emptyState">لا توجد فواتير</p>}</div></section></div>;
+}
 
 function CreateForm({ type, onClose, onSaved, onNeedLogin }: { type: string | null; onClose: () => void; onSaved: (label: string) => void; onNeedLogin: () => void }) {
   const [error, setError] = useState("");
@@ -187,7 +241,8 @@ function CreateForm({ type, onClose, onSaved, onNeedLogin }: { type: string | nu
       try {
         const invoices = await selectRecords("pr_invoices", `invoice_no=eq.${encodeURIComponent(data.client)}&select=id&limit=1`);
         if (!invoices[0]?.id) throw new Error("رقم الفاتورة غير موجود");
-        record = { ...record, payload: { ...record.payload, invoice_id: invoices[0].id } };
+        await callRpc("pr_record_invoice_payment", { p_invoice_id: invoices[0].id, p_amount: amount, p_method: data.service, p_reference: data.phone });
+        onSaved(type); setSaving(false); return;
       } catch (reason) { setError(reason instanceof Error ? reason.message : "تعذر العثور على الفاتورة"); setSaving(false); return; }
     }
     try { await insertRecord(record.table, record.payload); onSaved(type); }
@@ -252,7 +307,7 @@ function PublicHome({ onConnected }: { onConnected: () => void }) {
     catch (reason) { setError(reason instanceof Error ? reason.message : "تعذر إرسال الطلب"); }
     finally { setLoading(false); }
   };
-  return <main className="publicHome" dir="rtl"><header className="publicNav"><div><img src="/brand/logo.png" alt="Purity Ritual"/><strong>Purity Ritual</strong></div><nav><a href="#services">خدماتنا</a><a href="#team">فريقنا</a><a href="#contact">تواصل معنا</a></nav><button onClick={() => setLoginOpen(true)}>دخول العملاء والموظفين</button></header><section className="publicHero"><div><span>خدمات تنظيف احترافية في جدة</span><h1>نظافة موثوقة<br/>تشعر بها.</h1><p>للمنازل والمكاتب والمنشآت، بفريق مدرّب وزي موحّد ومتابعة واضحة من الطلب حتى الإنجاز.</p><div><button className="primary" onClick={() => setQuoteOpen(true)}>اطلب عرض سعر مجانًا</button><a href="https://wa.me/966555330406">تواصل واتساب</a></div></div><img src="/brand/team-professional.png" alt="فريق Purity Ritual بالزي المعتمد"/></section><section id="services" className="publicServices"><span>خدماتنا</span><h2>حلول نظافة تناسب احتياجك</h2><div><article><strong>تنظيف المنازل والفلل</strong><p>تنظيف دوري وعميق بعناية دقيقة للمساحات السكنية.</p></article><article><strong>تنظيف المكاتب والمنشآت</strong><p>خطط مرنة للمكاتب والمعارض والمواقع التجارية.</p></article><article><strong>تنظيف ما بعد التشطيب</strong><p>إزالة آثار الأعمال وتجهيز الموقع للتسليم والاستخدام.</p></article><article><strong>تلميع الأرضيات</strong><p>عناية احترافية بالرخام والسيراميك والأسطح المختلفة.</p></article></div></section><section id="team" className="publicTrust"><img src="/brand/hero-professional.png" alt="موظفة من فريق Purity Ritual"/><div><span>لماذا Purity Ritual؟</span><h2>فريق محترف وهوية موحدة</h2><p>نلتزم بالمواعيد، ونستخدم معدات مناسبة، ونتابع جودة الخدمة حتى رضا العميل.</p><ul><li>فريق مدرّب وموثوق</li><li>معدات ومنظفات متخصصة</li><li>فحص جودة بعد التنفيذ</li><li>عروض أسعار واضحة</li></ul></div></section><footer id="contact"><strong>Purity Ritual</strong><span>جدة، المملكة العربية السعودية</span><a href="tel:+966555330406">+966 55 533 0406</a><a href="mailto:ahmedazi911@gmail.com">ahmedazi911@gmail.com</a></footer>
+  return <main className="publicHome" dir="rtl"><header className="publicNav"><div><img src="/brand/logo.png" alt="Purity Ritual"/><strong>Purity Ritual</strong></div><nav><a href="#services">خدماتنا</a><a href="#team">فريقنا</a><a href="#contact">تواصل معنا</a></nav><button onClick={() => setLoginOpen(true)}>دخول العملاء والموظفين</button></header><section className="publicHero"><div><span>خدمات تنظيف احترافية في جدة</span><h1>نظافة موثوقة<br/>تشعر بها.</h1><p>للمنازل والمكاتب والمنشآت، بفريق مدرّب وزي موحّد ومتابعة واضحة من الطلب حتى الإنجاز.</p><div><button className="primary" onClick={() => setQuoteOpen(true)}>اطلب عرض سعر مجانًا</button><a href="https://wa.me/966555330406">تواصل واتساب</a></div></div><img src="/brand/team-professional.png" alt="فريق Purity Ritual بالزي المعتمد"/></section><section id="services" className="publicServices"><span>خدماتنا</span><h2>حلول نظافة تناسب احتياجك</h2><div><article><strong>تنظيف المنازل والفلل</strong><p>تنظيف دوري وعميق بعناية دقيقة للمساحات السكنية.</p></article><article><strong>تنظيف المكاتب والمنشآت</strong><p>خطط مرنة للمكاتب والمعارض والمواقع التجارية.</p></article><article><strong>تنظيف ما بعد التشطيب</strong><p>إزالة آثار الأعمال وتجهيز الموقع للتسليم والاستخدام.</p></article><article><strong>تلميع الأرضيات</strong><p>عناية احترافية بالرخام والسيراميك والأسطح المختلفة.</p></article></div></section><section id="team" className="publicTrust"><img src="/brand/team-professional.png" alt="فريق Purity Ritual من الموظفين والموظفات"/><div><span>لماذا Purity Ritual؟</span><h2>فريق محترف وهوية موحدة</h2><p>نلتزم بالمواعيد، ونستخدم معدات مناسبة، ونتابع جودة الخدمة حتى رضا العميل.</p><ul><li>فريق مدرّب وموثوق</li><li>معدات ومنظفات متخصصة</li><li>فحص جودة بعد التنفيذ</li><li>عروض أسعار واضحة</li></ul></div></section><section id="contact" className="publicContact"><span>تواصل معنا</span><h2>نحن جاهزون لخدمتك</h2><p>للطلبات والاستفسارات في جدة، اختر وسيلة التواصل المناسبة.</p><div><a className="whatsappContact" href="https://wa.me/966555330406" target="_blank" rel="noreferrer">واتساب: +966 55 533 0406</a><a href="tel:+966555330406">اتصال مباشر</a><a href="mailto:ahmedazi911@gmail.com">ahmedazi911@gmail.com</a></div></section><footer><strong>Purity Ritual</strong><span>جدة، المملكة العربية السعودية</span><a href="tel:+966555330406">+966 55 533 0406</a><a href="mailto:ahmedazi911@gmail.com">ahmedazi911@gmail.com</a></footer>
   <Dialog open={loginOpen} onOpenChange={value => { setLoginOpen(value); setError(""); setMessage(""); }}><DialogContent dir="rtl" className="createDialog"><div className="loginTabs"><button className={authMode === "login" ? "active" : ""} onClick={() => setAuthMode("login")}>تسجيل الدخول</button><button className={authMode === "register" ? "active" : ""} onClick={() => setAuthMode("register")}>حساب عميل جديد</button></div><DialogHeader><DialogTitle>{authMode === "login" ? "تسجيل الدخول" : "إنشاء حساب عميل"}</DialogTitle><DialogDescription>{authMode === "login" ? "للعملاء المسجلين وموظفي الشركة." : "أنشئ حسابًا لمتابعة طلباتك وعروض الأسعار والفواتير."}</DialogDescription></DialogHeader>{message ? <div className="quoteSuccess"><CheckCircle2/><strong>{message}</strong><button className="primary" onClick={() => { setMessage(""); setAuthMode("login"); }}>الانتقال للدخول</button></div> : authMode === "login" ? <form className="createForm" onSubmit={login}><label><span>البريد الإلكتروني</span><input name="email" type="email" required/></label><label><span>كلمة المرور</span><input name="password" type="password" minLength={8} required/></label>{error && <p className="formError">{error}</p>}<button className="primary" disabled={loading}>{loading ? "جاري التحقق..." : "دخول"}</button></form> : <form className="createForm" onSubmit={register}><label><span>الاسم الكامل</span><input name="full_name" required/></label><div className="formGrid"><label><span>رقم الجوال</span><input name="phone" inputMode="tel" required/></label><label><span>البريد الإلكتروني</span><input name="email" type="email" required/></label></div><div className="formGrid"><label><span>كلمة المرور</span><input name="password" type="password" minLength={8} required/></label><label><span>تأكيد كلمة المرور</span><input name="confirm_password" type="password" minLength={8} required/></label></div>{error && <p className="formError">{error}</p>}<button className="primary" disabled={loading}>{loading ? "جاري إنشاء الحساب..." : "إنشاء الحساب"}</button></form>}</DialogContent></Dialog>
   <Dialog open={quoteOpen} onOpenChange={value => { setQuoteOpen(value); setError(""); setMessage(""); }}><DialogContent dir="rtl" className="createDialog"><DialogHeader><DialogTitle>طلب عرض سعر</DialogTitle><DialogDescription>لا تحتاج إلى إنشاء حساب. اترك بياناتك وسنتواصل معك.</DialogDescription></DialogHeader>{message ? <div className="quoteSuccess"><CheckCircle2/><strong>{message}</strong><button className="primary" onClick={() => setQuoteOpen(false)}>تم</button></div> : <form className="createForm" onSubmit={quote}><label><span>الاسم الكامل</span><input name="full_name" required/></label><div className="formGrid"><label><span>رقم الجوال</span><input name="phone" inputMode="tel" required/></label><label><span>البريد الإلكتروني (اختياري)</span><input name="email" type="email"/></label></div><div className="formGrid"><label><span>نوع الخدمة</span><select name="service_type" required><option value="">اختر الخدمة</option><option>تنظيف منزل أو فيلا</option><option>تنظيف مكتب أو منشأة</option><option>تنظيف بعد التشطيب</option><option>تلميع أرضيات</option></select></label><label><span>الحي</span><input name="district" required/></label></div><label><span>تفاصيل إضافية</span><textarea name="notes" rows={3}/></label>{error && <p className="formError">{error}</p>}<button className="primary" disabled={loading}>{loading ? "جاري الإرسال..." : "إرسال الطلب"}</button></form>}</DialogContent></Dialog></main>;
 }

@@ -1,0 +1,36 @@
+PURITY RITUAL — COMPLETE SERVICE WORKFLOW SPRINT
+
+ONE DATABASE FILE
+Open Supabase > SQL Editor > New query.
+Copy and run only:
+supabase/008_COMPLETE_SERVICE_LIFECYCLE.sql
+Expected result: Success. No rows returned.
+
+LOCAL TEST
+1. npm install
+2. npm run dev
+3. Open the Local URL shown by PowerShell.
+
+FULL ACCEPTANCE SCENARIO
+1. Customer (melnaeem@gmail.com): create a service request.
+2. Super Admin (melnaeema@gmail.com): open دورة التشغيل.
+3. Click بدء المراجعة.
+4. Enter price before VAT and click إصدار وإرسال العرض.
+5. Customer: open عروض الأسعار and approve the quotation.
+6. Super Admin/Operations: select an employee and click إسناد وجدولة.
+7. Employee: open مهامي, click بدء المهمة, then إنهاء المهمة.
+8. Super Admin/Accountant: open دورة التشغيل and issue the invoice.
+9. Open الفواتير والتحصيل, click تسجيل دفعة, enter invoice number, amount, method and reference.
+10. Customer: verify request status, accepted quotation, invoice and payment status.
+
+ROLE ACCEPTANCE
+- melnaeema@gmail.com: Super Admin and all modules.
+- melnaeem@gmail.com: Customer portal only.
+- Sales: requests, customers and quotations according to assigned screens.
+- Operations: workflow and own tasks according to assigned screens.
+- Accountant: contracts, invoices and collections according to assigned screens.
+- Employees cannot edit their own roles or permissions.
+
+CLOUDFLARE
+Build command: npm run build
+Build output directory: dist/client
