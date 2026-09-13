@@ -235,6 +235,14 @@ function CreateForm({ type, onClose, onSaved, onNeedLogin }: { type: string | nu
     const data = Object.fromEntries(new FormData(event.currentTarget).entries()) as Record<string, string>;
     const userId = getUserId();
     const amount = Number(String(data.value || "0").replace(/,/g, "")) || 0;
+    if (type === "طلب خدمة") {
+      try {
+        await callRpc("pr_create_service_request", { p_customer_name: data.client, p_customer_phone: data.phone, p_service_type: data.service, p_address: data.value, p_notes: data.notes || null });
+        onSaved(type);
+      } catch (reason) { setError(reason instanceof Error ? reason.message : "تعذر إرسال الطلب"); }
+      finally { setSaving(false); }
+      return;
+    }
     let record = type === "إضافة عميل"
       ? { table: "pr_customers", payload: { full_name: data.client, phone: data.phone, address: data.value, notes: data.notes, created_by: userId } }
       : type === "طلب خدمة"

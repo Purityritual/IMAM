@@ -85,6 +85,27 @@ alter table public.pr_service_requests add column if not exists completed_at tim
 alter table public.pr_service_requests add column if not exists final_notes text;
 alter table public.pr_service_requests add column if not exists quoted_total numeric(12,2);
 
+drop policy if exists "requests customer read" on public.pr_service_requests;
+create policy "requests customer read" on public.pr_service_requests for select to authenticated
+using(customer_id=auth.uid() or public.pr_is_staff());
+drop policy if exists "requests customer create" on public.pr_service_requests;
+create policy "requests customer create" on public.pr_service_requests for insert to authenticated
+with check(customer_id=auth.uid());
+grant select,insert,update on public.pr_service_requests to authenticated;
+
+create or replace function public.pr_create_service_request(
+  p_customer_name text,p_customer_phone text,p_service_type text,p_address text,p_notes text default null
+) returns uuid language plpgsql security definer set search_path=public as $$
+declare new_id uuid;
+begin
+  if auth.uid() is null then raise exception 'يلزم تسجيل الدخول';end if;
+  insert into public.pr_service_requests(customer_id,customer_name,customer_phone,service_type,city,address,notes,created_by,status)
+  values(auth.uid(),p_customer_name,p_customer_phone,p_service_type,'جدة',p_address,p_notes,auth.uid(),'new')
+  returning id into new_id;
+  return new_id;
+end;$$;
+grant execute on function public.pr_create_service_request(text,text,text,text,text) to authenticated;
+
 update public.pr_service_requests r set customer_id=p.id
 from public.pr_profiles p
 where r.customer_id is null and r.customer_phone is not null and p.phone is not null
