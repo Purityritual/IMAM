@@ -85,6 +85,15 @@ alter table public.pr_service_requests add column if not exists completed_at tim
 alter table public.pr_service_requests add column if not exists final_notes text;
 alter table public.pr_service_requests add column if not exists quoted_total numeric(12,2);
 
+update public.pr_service_requests r set customer_id=p.id
+from public.pr_profiles p
+where r.customer_id is null and r.customer_phone is not null and p.phone is not null
+  and regexp_replace(r.customer_phone,'[^0-9]','','g')=regexp_replace(p.phone,'[^0-9]','','g');
+
+drop policy if exists "requests customer read" on public.pr_service_requests;
+create policy "requests customer read" on public.pr_service_requests for select to authenticated
+using(customer_id=auth.uid() or public.pr_is_staff());
+
 alter table public.pr_invoices add column if not exists request_id uuid references public.pr_service_requests(id);
 alter table public.pr_invoices add column if not exists customer_id uuid references public.pr_profiles(id);
 alter table public.pr_employee_tasks add column if not exists request_id uuid references public.pr_service_requests(id);
