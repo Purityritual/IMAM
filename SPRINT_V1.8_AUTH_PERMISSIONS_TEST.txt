@@ -1,0 +1,24 @@
+Purity Ritual V1.8 — Authentication, Roles & Team Identity
+============================================================
+
+الجديد:
+- شاشة دخول واضحة ومنفصلة للعملاء والموظفين.
+- تحديد الواجهة والصلاحيات من role في pr_profiles؛ لا يوجد مبدّل صلاحيات للمستخدم.
+- العميل يدخل مباشرة إلى بوابة العميل، والموظف إلى لوحة الإدارة حسب دوره.
+- إزالة اسم Supabase من جميع النصوص الظاهرة للعملاء والموظفين.
+- صورة فريق احترافية تضم رجالًا ونساءً بالزي والشعار المعتمد.
+- الإبقاء على جلب البيانات والحفظ والتحصيل من قاعدة البيانات.
+
+التثبيت والاختبار:
+1. فك الحزمة فوق C:\projects\PurityRitual\repo
+2. cd C:\projects\PurityRitual\repo
+3. npm install
+4. npm run build
+5. npm run dev
+
+اختبر حسابًا role=customer وحسابات admin/sales/operations/accountant.
+
+Cloudflare Pages:
+Build command: npm run build
+Build output directory: dist/client
+Root directory: فارغ

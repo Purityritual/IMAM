@@ -1,0 +1,31 @@
+Purity Ritual V2.2 — Super Admin, Employee Permissions & Tasks
+
+1) In Supabase > SQL Editor run:
+   supabase/005_EMPLOYEE_PERMISSIONS_TASKS.sql
+   then supabase/006_SUPER_ADMIN_EMPLOYEE_LEVELS.sql
+
+2) Extract the ZIP, then in PowerShell:
+   cd C:\projects\Purity-Ritual-V2.0
+   npm install
+   npm run dev
+
+3) Open http://localhost:5173
+
+4) Test accounts:
+   Customer: melnaeem@gmail.com (must open customer portal only)
+   Administrator: melnaeema@gmail.com (must open management)
+
+5) As administrator:
+   Open "الموظفون والصلاحيات".
+   Click "موظف جديد", create the login, role and allowed screens.
+   Select an employee, revise allowed screens, and save.
+   Assign a task to that employee.
+
+6) As employee:
+   Sign out, then sign in with the employee account.
+   Verify only permitted screens appear.
+   Open "مهامي" and complete the assigned task.
+
+7) Production build:
+   npm run build
+   Cloudflare output directory: dist/client

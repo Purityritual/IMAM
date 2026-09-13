@@ -1,0 +1,28 @@
+Purity Ritual V1.7 — Supabase Live Operations
+================================================
+
+الجديد:
+- تحميل العملاء والطلبات والعروض والعقود والفواتير مباشرة من Supabase.
+- قراءة دور الموظف من pr_profiles وتطبيق الصلاحية في الواجهة.
+- تسجيل دفعة وربطها برقم الفاتورة.
+- حالات واضحة للتحميل وعدم وجود بيانات وأخطاء الاتصال.
+- Static Export متوافق مع Cloudflare Pages في dist/client.
+
+فك الضغط فوق مجلد المشروع ثم:
+
+cd C:\projects\PurityRitual\repo
+npm install
+npm run build
+npm run dev
+
+الاختبار:
+1. افتح http://localhost:5173
+2. اضغط ربط Supabase وسجل حساب الإدارة.
+3. أضف عميلًا وطلب خدمة وعرض سعر وعقدًا وفاتورة.
+4. افتح الفواتير والتحصيل وسجل دفعة باستخدام رقم فاتورة صحيح.
+5. بدّل إلى حساب المحاسب وتأكد من ظهور العملاء والعقود والفواتير فقط.
+
+Cloudflare:
+Build command: npm run build
+Build output directory: dist/client
+Root directory: فارغ

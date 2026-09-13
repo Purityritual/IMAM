@@ -1,0 +1,25 @@
+PURITY RITUAL — UNIFIED EMPLOYEES, PERMISSIONS & TASKS SPRINT
+
+DATABASE
+1. Open Supabase > SQL Editor > New query.
+2. Run only: supabase/007_UNIFIED_EMPLOYEES_PERMISSIONS_TASKS.sql
+3. Confirm: Success. No rows returned.
+
+LOCAL INSTALL (PowerShell)
+Expand-Archive -Path "$env:USERPROFILE\Downloads\Purity-Ritual-Unified-Employees-Sprint.zip" -DestinationPath "C:\projects\Purity-Ritual-Unified" -Force
+cd "C:\projects\Purity-Ritual-Unified"
+npm install
+npm run dev
+
+TEST
+1. Login as melnaeema@gmail.com. Role must be السوبر أدمن.
+2. Open الموظفون والصلاحيات.
+3. Existing staff and previously pending employee accounts must appear.
+4. Add a new employee with a unique email and temporary password.
+5. Employee must appear immediately without page reload.
+6. Assign a task, then login as that employee and verify it appears in مهامي.
+7. Login as melnaeem@gmail.com and verify customer portal only.
+
+CLOUDFLARE
+Build command: npm run build
+Build output directory: dist/client
