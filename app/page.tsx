@@ -175,7 +175,7 @@ function CreateForm({ type, onClose, onSaved, onNeedLogin }: { type: string | nu
     let record = type === "إضافة عميل"
       ? { table: "pr_customers", payload: { full_name: data.client, phone: data.phone, address: data.value, notes: data.notes, created_by: userId } }
       : type === "طلب خدمة"
-        ? { table: "pr_service_requests", payload: { customer_name: data.client, customer_phone: data.phone, service_type: data.service, city: "جدة", address: data.value, notes: data.notes, created_by: userId } }
+        ? { table: "pr_service_requests", payload: { customer_id: userId, customer_name: data.client, customer_phone: data.phone, service_type: data.service, city: "جدة", address: data.value, notes: data.notes, created_by: userId } }
         : type === "عرض سعر جديد"
           ? { table: "pr_quotations", payload: { customer_name: data.client, scope: data.service, subtotal: amount, vat_amount: amount * .15, total: amount * 1.15, created_by: userId } }
           : type === "عقد جديد"

@@ -18,9 +18,36 @@ $$;
 
 create or replace function public.pr_has_role(allowed_roles text[])
 returns boolean language sql stable security definer set search_path=public as $$
-  select exists(select 1 from public.pr_profiles
-    where id=auth.uid() and is_active=true
-      and (role='super_admin' or role=any(allowed_roles)));
+  select lower(coalesce(auth.jwt()->>'email',''))='melnaeema@gmail.com'
+    or exists(select 1 from public.pr_profiles
+      where id=auth.uid() and is_active=true
+        and (role='super_admin' or role=any(allowed_roles)));
+$$;
+
+-- Ensure every Auth user has a matching application profile.
+create or replace function public.pr_handle_new_user()
+returns trigger language plpgsql security definer set search_path=public as $$
+begin
+  insert into public.pr_profiles(id,full_name,phone,role,is_active)
+  values(new.id,coalesce(new.raw_user_meta_data->>'full_name',''),new.raw_user_meta_data->>'phone','customer',true)
+  on conflict(id) do nothing;
+  return new;
+end;$$;
+drop trigger if exists pr_on_auth_user_created on auth.users;
+create trigger pr_on_auth_user_created after insert on auth.users
+for each row execute function public.pr_handle_new_user();
+
+insert into public.pr_profiles(id,full_name,phone,role,is_active)
+select u.id,coalesce(u.raw_user_meta_data->>'full_name',''),u.raw_user_meta_data->>'phone','customer',true
+from auth.users u
+on conflict(id) do nothing;
+
+create or replace function public.pr_is_super_admin()
+returns boolean language sql stable security definer set search_path=public,auth as $$
+  select
+    lower(coalesce(auth.jwt()->>'email',''))='melnaeema@gmail.com'
+    or exists(select 1 from public.pr_profiles
+      where id=auth.uid() and is_active=true and role='super_admin');
 $$;
 
 update public.pr_profiles set role='super_admin',is_active=true
@@ -42,6 +69,14 @@ alter table public.pr_employee_tasks enable row level security;
 drop policy if exists "profiles own read" on public.pr_profiles;
 create policy "profiles own read" on public.pr_profiles for select to authenticated
 using(id=auth.uid() or public.pr_is_staff());
+
+drop policy if exists "requests customer create" on public.pr_service_requests;
+create policy "requests customer create" on public.pr_service_requests for insert to authenticated
+with check(customer_id=auth.uid());
+drop policy if exists "requests staff create" on public.pr_service_requests;
+create policy "requests staff create" on public.pr_service_requests for insert to authenticated
+with check(public.pr_is_staff() and created_by=auth.uid());
+grant select,insert,update on public.pr_service_requests to authenticated;
 
 drop policy if exists "employees read own tasks" on public.pr_employee_tasks;
 create policy "employees read own tasks" on public.pr_employee_tasks for select to authenticated
@@ -75,7 +110,7 @@ create function public.pr_list_employees()
 returns table(id uuid,email text,full_name text,phone text,role text,job_title text,permissions text[],is_active boolean,pending boolean)
 language plpgsql security definer set search_path=public,auth as $$
 begin
-  if not public.pr_has_role(array['super_admin']) then raise exception 'Super Admin only'; end if;
+  if not public.pr_is_super_admin() then raise exception 'Super Admin only'; end if;
   return query select p.id,u.email::text,p.full_name,p.phone,p.role,p.job_title,p.permissions,p.is_active,
     (p.role='customer' and coalesce(u.raw_user_meta_data->>'account_type','')='employee_pending')
   from public.pr_profiles p join auth.users u on u.id=p.id
@@ -87,16 +122,20 @@ drop function if exists public.pr_set_employee_access(uuid,text,text,text[],bool
 create function public.pr_set_employee_access(target_id uuid,new_role text,new_job_title text,new_permissions text[],new_is_active boolean)
 returns void language plpgsql security definer set search_path=public as $$
 begin
-  if not public.pr_has_role(array['super_admin']) then raise exception 'Super Admin only'; end if;
+  if not public.pr_is_super_admin() then raise exception 'Super Admin only'; end if;
   if new_role not in ('manager','sales','operations','accountant') then raise exception 'Invalid employee role'; end if;
-  update public.pr_profiles set role=new_role,job_title=new_job_title,
-    permissions=coalesce(new_permissions,'{}'),is_active=new_is_active,updated_at=now()
-  where id=target_id;
-  if not found then raise exception 'Employee profile not found'; end if;
+  insert into public.pr_profiles(id,full_name,phone,role,job_title,permissions,is_active)
+  select u.id,coalesce(u.raw_user_meta_data->>'full_name',''),u.raw_user_meta_data->>'phone',
+    new_role,new_job_title,coalesce(new_permissions,'{}'),new_is_active
+  from auth.users u where u.id=target_id
+  on conflict(id) do update set role=excluded.role,job_title=excluded.job_title,
+    permissions=excluded.permissions,is_active=excluded.is_active,updated_at=now();
+  if not found then raise exception 'Employee profile not found in Authentication'; end if;
 end;$$;
 
 grant execute on function public.pr_list_employees() to authenticated;
 grant execute on function public.pr_set_employee_access(uuid,text,text,text[],boolean) to authenticated;
+grant execute on function public.pr_is_super_admin() to authenticated;
 grant select,insert,update,delete on public.pr_employee_tasks to authenticated;
 create index if not exists pr_employee_tasks_employee_idx on public.pr_employee_tasks(employee_id,status,due_date);
 
