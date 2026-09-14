@@ -9,7 +9,7 @@ const nav = [["نظرة عامة", LayoutDashboard], ["طلبات عروض ال�
 type Role = "السوبر أدمن" | "المدير العام" | "مدير المشاريع" | "خدمة العملاء" | "التسويق" | "المبيعات" | "مشرف العمليات" | "المحاسب";
 const permissions: Record<Role, { sections: string[]; create: string[]; export: boolean }> = {
   "السوبر أدمن": { sections: nav.map(([n]) => n), create: nav.map(([n]) => n), export: true },
-  "المدير العام": { sections: nav.filter(([n]) => n !== "الموظفون والصلاحيات").map(([n]) => n), create: ["طلبات الخدمة", "العملاء", "عروض الأسعار", "العقود", "الفواتير والتحصيل"], export: true },
+  "المدير العام": { sections: nav.map(([n]) => n), create: ["طلبات الخدمة", "العملاء", "عروض الأسعار", "العقود", "الفواتير والتحصيل"], export: true },
   "مدير المشاريع": { sections: ["نظرة عامة", "إدارة المشاريع", "الرقابة والربحية", "مهامي", "طلبات الخدمة", "العملاء"], create: ["طلبات الخدمة"], export: false },
   "خدمة العملاء": { sections: ["نظرة عامة", "خدمة العملاء والتسويق", "مهامي", "العملاء", "طلبات الخدمة"], create: [], export: false },
   "التسويق": { sections: ["نظرة عامة", "طلبات عروض السعر", "خدمة العملاء والتسويق", "مهامي", "العملاء"], create: [], export: false },
@@ -41,7 +41,7 @@ export default function Home() {
   const [assignedSections, setAssignedSections] = useState<string[]>([]);
   const [customerRefresh, setCustomerRefresh] = useState(0);
   const basePermit = permissions[role];
-  const permit = role === "السوبر أدمن" || !assignedSections.length ? basePermit : { ...basePermit, sections: ["نظرة عامة", "مهامي", ...assignedSections.filter(x => !["نظرة عامة", "مهامي", "الموظفون والصلاحيات"].includes(x))] };
+  const permit = role === "السوبر أدمن" || !assignedSections.length ? basePermit : { ...basePermit, sections: ["نظرة عامة", "مهامي", ...assignedSections.filter(x => !["نظرة عامة", "مهامي"].includes(x))] };
   useEffect(() => {
     setConnected(Boolean(getSession()));
     setSessionChecked(true);
