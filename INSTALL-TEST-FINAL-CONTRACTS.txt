@@ -1,0 +1,26 @@
+Purity Ritual — Final Contracts & Follow-up Sprint
+==================================================
+
+1) DATABASE FIRST
+Open Supabase > SQL Editor and run:
+   sql/FINAL_CONTRACTS_SPRINT.sql
+
+2) INSTALL / START
+Use the same package manager and start command used by the current deployed project.
+This supplied baseline ZIP does not contain package.json, so preserve your existing project package files when merging if needed.
+
+3) CONTRACTS TEST
+- Login as staff with access to العقود.
+- Open العقود.
+- Confirm KPIs: total, active, expiring in 30 days, total value.
+- Create a contract with start/end dates and payment terms.
+- Open the contract and add a follow-up note.
+- Change state Active > Suspended > Active.
+- Create a contract ending within 30 days and confirm it appears as قريب الانتهاء.
+- Search by contract number, client, phone, or service.
+
+4) IMPORTANT
+- Existing contracts remain preserved.
+- SQL only adds fields/table/indexes and does not drop contract records.
+- pr_invoices receives optional contract_id for future direct invoice-to-contract linking.
+- Contract number can be entered manually; if blank the UI generates CTR-YYYYMMDD-####.

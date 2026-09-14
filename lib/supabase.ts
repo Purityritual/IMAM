@@ -23,11 +23,11 @@ export async function signIn(email: string, password: string) {
   return body as SupabaseSession;
 }
 
-export async function signUp(email: string, password: string, fullName: string, phone: string) {
+export async function signUp(email: string, password: string, fullName: string, phone: string, customerType = "individual", vatNumber: string | null = null) {
   const response = await fetch(`${SUPABASE_URL}/auth/v1/signup`, {
     method: "POST",
     headers: { apikey: SUPABASE_KEY, "Content-Type": "application/json" },
-    body: JSON.stringify({ email, password, data: { full_name: fullName, phone } }),
+    body: JSON.stringify({ email, password, data: { full_name: fullName, phone, customer_type: customerType, vat_number: customerType === "business" ? vatNumber : null } }),
   });
   const body = await response.json();
   if (!response.ok) throw new Error(body.msg || body.error_description || "تعذر إنشاء الحساب");

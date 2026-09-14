@@ -3,16 +3,6 @@ alter table public.pr_profiles drop constraint if exists pr_profiles_role_check;
 alter table public.pr_profiles add constraint pr_profiles_role_check
 check (role in ('customer','super_admin','admin','manager','sales','operations','accountant'));
 
--- Keep legacy RLS policies compatible with all staff levels, including Super Admin.
-create or replace function public.pr_is_staff()
-returns boolean language sql stable security definer set search_path=public as $$
-  select exists (
-    select 1 from public.pr_profiles
-    where id=auth.uid() and is_active=true
-      and role in ('super_admin','admin','manager','sales','operations','accountant')
-  );
-$$;
-
 -- Super Admin automatically passes every existing role check.
 create or replace function public.pr_has_role(allowed_roles text[])
 returns boolean language sql stable security definer set search_path=public as $$
@@ -34,7 +24,6 @@ returns trigger language plpgsql security definer set search_path=public as $$
 begin
   if (new.role, new.permissions, new.is_active, new.job_title)
      is distinct from (old.role, old.permissions, old.is_active, old.job_title)
-     and auth.uid() is not null
      and not public.pr_has_role(array['super_admin']) then
     raise exception 'Only Super Admin can change employee access';
   end if;
@@ -55,7 +44,7 @@ using (public.pr_has_role(array['super_admin']));
 create or replace function public.pr_protect_task_assignment()
 returns trigger language plpgsql security definer set search_path=public as $$
 begin
-  if auth.uid() is not null and not public.pr_has_role(array['super_admin']) and
+  if not public.pr_has_role(array['super_admin']) and
      (new.employee_id, new.title, new.description, new.due_date, new.priority, new.created_by)
      is distinct from
      (old.employee_id, old.title, old.description, old.due_date, old.priority, old.created_by) then
